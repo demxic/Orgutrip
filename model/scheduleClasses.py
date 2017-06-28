@@ -1,5 +1,7 @@
 from datetime import timedelta
+
 from model.timeClasses import Duration
+
 
 # TODO : Apply the observer pattern to all classes so that calculated values may be updated on the fly
 
@@ -43,7 +45,7 @@ class Marker(object):
 
     @property
     def begin(self):
-        return self.actual_itinerary.begin if self.actual_itinerary else self.published_itinerary.begin
+        return self.published_itinerary.begin if self.published_itinerary else self.actual_itinerary.begin
 
     @property
     def end(self):
