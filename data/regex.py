@@ -42,7 +42,7 @@ airItineraryRE = re.compile(r"""
 
 # RegEx que se debe utilizar cuando el rol no contiene Crew Type
 crewstats_no_type = re.compile(r"""
-    (?P<crewId>\d{6})\s+            #6 digits at start followed by one or more spaces        v.gr. 102711
+    (?P<crew_member_id>\d{6})\s+    #6 digits at start followed by one or more spaces        v.gr. 102711
     (?P<name>(\w{1,12}|(\w{1,11}\s\w{1,11})))\s+           #One or twelve alphanumeric crew member line name        v.gr. XICOTENCATL
     (?P<pos>[A-Z]{3})\s+            #Three letter postion id                                 v.gr. SOB
     (?P<group>\w{4})\s+             #Group for member                                        v.gr. S001
@@ -55,7 +55,7 @@ crewstats_no_type = re.compile(r"""
 
 # RegEx que se debe utilizar cuando el rol contiene Crew Type
 crewstats_with_type = re.compile(r"""
-    (?P<crewId>\d{6})\s+            #6 digits at start followed by one or more spaces        v.gr. 102711
+    (?P<crew_member_id>\d{6})\s+    #6 digits at start followed by one or more spaces        v.gr. 102711
     (?P<name>(\w{1,12}|(\w{1,11}\s\w{1,11})))\s+           #One or twelve alphanumeric crew member line name        v.gr. XICOTENCATL
     (?P<pos>[A-Z]{3})\s+            #Three letter postion id                                 v.gr. SOB
     (?P<group>\w{4})\s+             #Group for member                                        v.gr. S001

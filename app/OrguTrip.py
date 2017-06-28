@@ -1,15 +1,13 @@
-import sys
 import sqlite3
+import sys
+from datetime import datetime, timedelta
 
-from model.payment import PayCheck, compensation_dict
-from model.scheduleClasses import Trip, Itinerary
-from model.timeClasses import Duration
+from model.creditator import Creditator
+from model.crewmember import CrewMember
+from model.elements import DateTracker
+from model.scheduleClasses import Itinerary
 from rosterReaders.lineCreator import Liner
 from rosterReaders.txtroster import RosterReader
-from model.elements import DateTracker
-from model.creditator import Creditator, CreditTable
-from datetime import datetime, timedelta
-import numpy as np
 
 # Roles de la Cuija
 # rolFile = "C:\\Users\\Xico\\Google Drive\\Sobrecargo\\roles\\Rol-2017-02-P.txt"
@@ -66,11 +64,11 @@ class Menu:
         print("read_printed_line")
         with open(rolFile) as fp:
             rr = RosterReader(fp)
-        print("crew_stats : ", rr.crew_stats)
+        crew_member = CrewMember(**rr.crew_stats)
+        print("crew_member : ", crew_member)
         print("Carry in within month? ", rr.carry_in)
         print("Roster timeZone ", rr.timeZone)
         print("Roster year and month ", rr.year, rr.month)
-
         dt = DateTracker(rr.year, rr.month, rr.carry_in)
         print("Date Tracker: ", dt)
         print()
@@ -83,6 +81,7 @@ class Menu:
         liner = Liner(dt, rr.roster_days, 'scheduled')
         liner.build_line()
         self.line = liner.line
+        self.line.crewMember = crew_member
 
     def print_line(self):
         """Let's print out the roaster"""
