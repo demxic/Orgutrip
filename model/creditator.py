@@ -4,8 +4,8 @@ Created on 23/06/2016
 @author: Xico
 """
 
-from model.timeClasses import Duration
 import numpy as np
+from model.timeClasses import Duration
 
 # TODO : Move all this constants into a configuration file, associated to method set_rules
 
@@ -86,15 +86,16 @@ class Creditator(object):
             credit_row.xblock = credit_row.block - JORNADA_ORDINARIA_VUELO_TRAN
             credit_row.xduty_time = credit_row.duty_time - JORNADA_ORDINARIA_SERVICIO_TRAN
             credit_row.maxirre = credit_row.duty_time - MAXIMA_IRREBASABLE_SERVICIO_TRAN
+            # If there is a maxirre, normal xduty time ends where maxirre starts
+            if credit_row.maxirre > Duration(0):
+                credit_row.xduty_time = Duration(5 * 60)
         elif credit_row.duty_type == 'special trans':
             credit_row.xblock = credit_row.block - JORNADA_ORDINARIA_VUELO_TRANSP
             credit_row.xduty_time = credit_row.duty_time - JORNADA_ORDINARIA_SERVICIO_TRANSP
             credit_row.maxirre = credit_row.duty_time - MAXIMA_IRREBASABLE_SERVICIO_TRANSP
-        else:
-            pass
-        #If there is a maxirre, normal xduty time ends where maxirre starts
-        if credit_row.maxirre > Duration(0):
-            credit_row.xduty_time = Duration(5*60)
+            # If there is a maxirre, normal xduty time ends where maxirre starts
+            if credit_row.maxirre > Duration(0):
+                credit_row.xduty_time = Duration(6 * 60)
 
         return credit_row
 

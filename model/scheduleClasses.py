@@ -45,7 +45,7 @@ class Marker(object):
 
     @property
     def begin(self):
-        return self.published_itinerary.begin if self.published_itinerary else self.actual_itinerary.begin
+        return self.actual_itinerary.begin if self.actual_itinerary else self.published_itinerary.begin
 
     @property
     def end(self):
@@ -76,7 +76,7 @@ class GroundDuty(Marker):
 
     @property
     def report(self):
-        return self.begin
+        return self.published_itinerary.begin if self.published_itinerary else self.actual_itinerary.begin
 
     @property
     def release(self):
@@ -131,12 +131,12 @@ class Flight(GroundDuty):
     @property
     def report(self):
         """Flight's report time"""
-        return self.begin - timedelta(hours=1)
+        return super().report - timedelta(hours=1)
 
     @property
     def release(self):
         """Flights's release time """
-        return self.end + timedelta(minutes=30)
+        return super().release + timedelta(minutes=30)
 
     @property
     def block(self):
@@ -213,7 +213,6 @@ class DutyDay(object):
         1. Calculate dh and block time
         2. Calulate all turnarond times
         """
-        print("Estoy dentro del método calculate_credits del DutyDay")
         total_block = Duration(0)
         total_dh = Duration(0)
         for event in self.events:
@@ -242,9 +241,6 @@ class DutyDay(object):
         rpt = '{:%H%M}'.format(self.report)
         rls = '    '
         body = ''
-        print("estoy dentro del método str de DutyDay")
-        print("el valor de self.turns es:")
-        print(self.turns)
         if len(self.events) > 1:
             for event, turn in zip(self.events, self.turns):
                 turn = format(turn, '0')
