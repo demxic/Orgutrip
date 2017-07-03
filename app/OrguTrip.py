@@ -14,8 +14,8 @@ from rosterReaders.txtroster import RosterReader
 # summaryFile = "C:\\Users\\Xico\\Google Drive\\Sobrecargo\\Resumen de horas\\Rol-2017-02-R.txt"
 
 #Mis roles
-rolFile = "C:\\Users\\Xico\\Google Drive\\Sobrecargo\\roles\\201705.txt"
-summaryFile = "C:\\Users\\Xico\\Google Drive\\Sobrecargo\\Resumen de horas\\2017\\res201705.txt"
+rolFile = "C:\\Users\\Xico\\Google Drive\\Sobrecargo\\roles\\201703.txt"
+summaryFile = "C:\\Users\\Xico\\Google Drive\\Sobrecargo\\Resumen de horas\\2017\\res201703.txt"
 
 
 class Menu:

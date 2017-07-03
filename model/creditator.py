@@ -40,8 +40,8 @@ JORNADA_ORDINARIA_DH_MENSUAL = Duration(3*60)
 GARANTIA_HORAS_DE_VUELO_MENSUAL = Duration(80 * 60)
 
 # Otros créditos
-RECESO_MINIMO_CONTINENTAL = Duration(10*60)
-RECESO_MINIMO_TRANS = Duration(36*60)
+RECESO_CONTINENTAL = Duration(12*60)
+RECESO_TRANS = Duration(48*60)
 
 
 def get_rules_for(position, group):
@@ -61,6 +61,11 @@ class Creditator(object):
 
     def set_rules(self):
         pass
+
+    def calculate_pending_rest(self, rest):
+        pending_rest = RECESO_CONTINENTAL - rest
+        print("found a pending_rest: ", pending_rest)
+        return pending_rest
 
     def to_credit_row(self, duty_day):
         """
@@ -224,6 +229,9 @@ class CreditTable(object):
         formatted_totals = TotalsRow(credits_array.sum(axis=0))
         self._totals = formatted_totals
         return self._totals
+
+    def __getitem__(self, item):
+        return self.credit_rows[item]
 
     def payable(self):
         block = GARANTIA_HORAS_DE_VUELO_MENSUAL if self._totals[1] < GARANTIA_HORAS_DE_VUELO_MENSUAL \

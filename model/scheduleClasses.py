@@ -303,6 +303,12 @@ class Trip(object):
         for duty_day in self.duty_days:
             credit_row = duty_day.get_credit_holder(creditator)
             credit_table.append(credit_row)
+        for index, rest in enumerate(self.rests):
+            pending_rest = creditator.calculate_pending_rest(rest)
+            print("pending rest for day ", pending_rest, duty_day.begin.day)
+            if pending_rest:
+                credit_table[index].pending_rest = pending_rest
+
         return credit_table
 
     def append(self, duty_day):
@@ -441,15 +447,15 @@ class Line(object):
 
     def get_credit_holder(self):
         credit_table = self.creditator.new_credit_table()
-        for duty_day in self.return_duty_days():
+        for duty in self.duties:
             # TODO : Remove the duties selection up to the class definition
-            credit_row = duty_day.get_credit_holder(self.creditator)
-            if set(credit_row.event_names).intersection(['X', 'XX', 'VA', 'RZ']):
-                pass
-            elif duty_day.begin.month is not self.month:
-                pass
-            else:
-                credit_table.append(credit_row)
+            credit_table.append(duty.get_credit_holder(self.creditator))
+            # if set(credit_row.event_names).intersection(['X', 'XX', 'VA', 'RZ']):
+            #     pass
+            # elif duty_day.begin.month is not self.month:
+            #     pass
+            # else:
+            #     credit_table.append(credit_row)
         return credit_table
 
     def return_duty(self, dutyId):
