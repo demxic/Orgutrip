@@ -1,5 +1,6 @@
 from datetime import timedelta
 
+from model.creditator import CreditTable, Creditator
 from model.timeClasses import Duration
 
 
@@ -56,7 +57,7 @@ class Marker(object):
         """How long is the Marker"""
         return Duration(self.end - self.begin)
 
-    def calculate_credits(self):
+    def compute_basic_credits(self, creditator):
         return None
 
     def __str__(self):
@@ -82,7 +83,7 @@ class GroundDuty(Marker):
     def release(self):
         return self.end
 
-    def calculate_credits(self):
+    def compute_basic_credits(self):
         return self.block, self.dh
 
     @property
@@ -114,7 +115,7 @@ class GroundDuty(Marker):
         template = """
         {0.begin:%d%b} {rpt:4s} {0.name:<6s} {0.origin} {0.begin:%H%M} {0.destination} {0.end:%H%M} {rls:4s} {block:0}       {turn:4s}       {eq}"""
         eq = self.equipment if self.equipment else 3 * ''
-        block, _ = self.calculate_credits()
+        block, _ = self.compute_basic_credits()
         return template.format(self, rpt=rpt, rls=rls, block=block, turn=turn, eq=eq)
 
 
@@ -152,7 +153,7 @@ class Flight(GroundDuty):
         else:
             return self.duration
 
-    def calculate_credits(self):
+    def compute_basic_credits(self):
         return self.block, self.dh
 
     def __str__(self):
@@ -200,15 +201,19 @@ class DutyDay(object):
 
     @property
     def block(self):
-        block, dh, dur = self.calculate_credits()
+        block, dh, dur = self.compute_basic_credits()
         return block
 
     @property
     def dh(self):
-        block, dh, dur = self.calculate_credits()
+        block, dh, dur = self.compute_basic_credits()
         return dh
 
-    def calculate_credits(self):
+    @property
+    def origin(self):
+        return self.events[0].origin
+
+    def compute_basic_credits(self):
         """
         1. Calculate dh and block time
         2. Calulate all turnarond times
@@ -216,10 +221,13 @@ class DutyDay(object):
         total_block = Duration(0)
         total_dh = Duration(0)
         for event in self.events:
-            block, dh = event.calculate_credits()
+            block, dh = event.compute_basic_credits()
             total_block += block
             total_dh += dh
         return total_block, total_dh, self.duration
+
+    def get_credit_holder(self, creditator):
+        return creditator.to_credit_row(self)
 
     def append(self, current_duty):
         """Add a duty, one by one  to this DutyDay"""
@@ -237,7 +245,7 @@ class DutyDay(object):
 
     def __str__(self):
         """The string representation of the current DutyDay"""
-        self.calculate_credits()
+        self.compute_basic_credits()
         rpt = '{:%H%M}'.format(self.report)
         rls = '    '
         body = ''
@@ -253,24 +261,6 @@ class DutyDay(object):
             body = self.events[-1].as_robust_string(rpt, rls, 4*'')
 
         return body
-        
-    # def __str__(self):
-    #     """The string representation of the current DutyDay"""
-    #     rpt = '{:%H%M}'.format(self.report)
-    #     rls = 4*''
-    #     body = ''
-    #     if len(self.events) > 1:
-    #         for event, turn in zip(self.events, self.turns):
-    #             turn = format(turn, '0')
-    #             body = body + event.as_robust_string(rpt, rls, turn)
-    #             rpt = 4*''
-    #         rls = '{:%H%M}'.format(self.release)
-    #         body = body + self.events[-1].as_robust_string(rls=rls)
-    #     else:
-    #         rls = '{:%H%M}'.format(self.release)
-    #         body = self.events[-1].as_robust_string(rpt, rls, 4*'')
-    #
-    #     return body
 
 
 class Trip(object):
@@ -295,17 +285,25 @@ class Trip(object):
     def release(self):
         return self.duty_days[-1].release
 
-    def calculate_credits(self):
+    def compute_basic_credits(self):
         total_block = Duration(0)
         total_dh = Duration(0)
         total_daily = Duration(0)
         for duty_day in self.duty_days:
-            block, dh, daily = duty_day.calculate_credits()
+            block, dh, daily = duty_day.compute_basic_credits()
             total_block += block
             total_dh += dh
             total_daily += daily
         tafb = Duration(self.release - self.report)
         return total_block + total_dh, total_block, total_dh, tafb
+
+    def get_credit_holder(self, creditator):
+        '''Returns a credit holder '''
+        credit_table = creditator.new_credit_table()
+        for duty_day in self.duty_days:
+            credit_row = duty_day.get_credit_holder(creditator)
+            credit_table.append(credit_row)
+        return credit_table
 
     def append(self, duty_day):
         """ Will append duty_day to self provided the minimum rest time"""
@@ -362,7 +360,7 @@ class Trip(object):
 
         for duty_day, rest in zip(self.duty_days, self.rests):
             rest = repr(rest)
-            block, dh, daily = duty_day.calculate_credits()
+            block, dh, daily = duty_day.compute_basic_credits()
             total = block + dh
             body = body + body_template.format(duty_day=duty_day,
                                                destination=duty_day.events[-1].destination,
@@ -373,7 +371,7 @@ class Trip(object):
                                                dy=daily)
         else:
             duty_day = self.duty_days[-1]
-            block, dh, daily = duty_day.calculate_credits()
+            block, dh, daily = duty_day.compute_basic_credits()
             total = block + dh
             body = body + body_template.format(duty_day=duty_day,
                                                destination='    ',
@@ -382,7 +380,7 @@ class Trip(object):
                                                cr=dh,
                                                tl=total,
                                                dy=daily)
-        total, block, dh, tafb = self.calculate_credits()
+        total, block, dh, tafb = self.compute_basic_credits()
         footer = footer_template.format(tl=total, bl=block, cr=dh, tafb=tafb)
         return header + body + footer
 
@@ -436,9 +434,23 @@ class Line(object):
         self.month = month
         self.year = year
         self.crewMember = crew_member
+        self.creditator = None
 
     def append(self, duty):
         self.duties.append(duty)
+
+    def get_credit_holder(self):
+        credit_table = self.creditator.new_credit_table()
+        for duty_day in self.return_duty_days():
+            # TODO : Remove the duties selection up to the class definition
+            credit_row = duty_day.get_credit_holder(self.creditator)
+            if set(credit_row.event_names).intersection(['X', 'XX', 'VA', 'RZ']):
+                pass
+            elif duty_day.begin.month is not self.month:
+                pass
+            else:
+                credit_table.append(credit_row)
+        return credit_table
 
     def return_duty(self, dutyId):
         """Return the corresponding duty for the given dutyId"""

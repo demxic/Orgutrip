@@ -39,6 +39,11 @@ JORNADA_ORDINARIA_VUELO_MENSUAL = Duration(65 * 60)
 JORNADA_ORDINARIA_DH_MENSUAL = Duration(3*60)
 GARANTIA_HORAS_DE_VUELO_MENSUAL = Duration(80 * 60)
 
+# Otros créditos
+RECESO_MINIMO_CONTINENTAL = Duration(10*60)
+RECESO_MINIMO_TRANS = Duration(36*60)
+
+
 def get_rules_for(position, group):
     pass
 
@@ -57,18 +62,11 @@ class Creditator(object):
     def set_rules(self):
         pass
 
-    @staticmethod
-    def to_credit_row(duty_day):
+    def to_credit_row(self, duty_day):
         """
         Builds and returns a CreditRow from a given DutyDay
         """
-        credit_row = CreditRow(duty_day.begin.day,
-                               duty_day.events[0].origin,
-                               duty_day.duration,
-                               duty_day.report,
-                               duty_day.release,
-                               duty_day.block,
-                               duty_day.dh)
+        credit_row = CreditRow(duty_day)
 
         for event in duty_day.events:
             if event.is_flight:
@@ -128,20 +126,6 @@ class Creditator(object):
         return max(0, min(a[1], b[1]) - max(a[0], b[0]))
 
     @staticmethod
-    def from_line(line):
-        credit_table = CreditTable()
-        for duty_day in line.return_duty_days():
-            # TODO : Remove the duties selection up to the class definition
-            credit_row = Creditator.to_credit_row(duty_day)
-            if set(credit_row.event_names).intersection(['X', 'XX', 'VA', 'RZ']):
-                pass
-            elif duty_day.begin.month is not line.month:
-                pass
-            else:
-                credit_table.append(credit_row)
-        return credit_table
-
-    @staticmethod
     def credit_row_classifier(credit_row):
         """Given a DutyDay, this classifier will insert the following tags:
            - regular : any continental flight under 10:00 duty time. It is the default value
@@ -156,6 +140,9 @@ class Creditator(object):
             if (credit_row.dh + credit_row.block) > MINIMUM_BLOCK or credit_row.duty_time > MINIMUM_DUTY:
                 credit_row.duty_type = 'special trans'
 
+    def new_credit_table(self):
+        return CreditTable()
+
 
 class CreditRow(object):
     string_section_template = "{0.day: >2} {0.routing!s:20s} {0.event_names!s:25s} {0.duty_type:18s} {0.report:%H:%M} " \
@@ -165,19 +152,24 @@ class CreditRow(object):
     header = 'D  RUTA                 SERVICIOS              TIPO DE JORNADA       FIMA  CIERRE    ' \
              'DUTY  BLK   DH    NOCT  XBLK  XDTY  IRRE  RECE  PLAT'
 
-    def __init__(self, day, origin, duty_time, report, release, block, dh):
+    def __init__(self, duty_day=None):
         """A CreditRow models all credits for a given DutyDay
             Note that a CreditRow has two sections, one containing all strings info
             and the second part contains the credits """
-        self.day = day
-        self.routing = FormattedList([origin])
-        self.event_names = FormattedList([''])
+        if duty_day:
+            self.day = duty_day.begin.day
+            self.routing = FormattedList([duty_day.origin])
+            self.block, self.dh, self.duty_time = duty_day.compute_basic_credits()
+            self.report = duty_day.report
+            self.release = duty_day.release
+        else :
+            self.day = 2*' '
+            self.routing = 3*' '
+            self.block, self.dh, self.duty_time = Duration(0), Duration(0), Duration(0)
+            self.report = 5*' '
+            self.release = 5*' '
         self.duty_type = 'regular'
-        self.duty_time = duty_time
-        self.report = report
-        self.release = release
-        self.block = block
-        self.dh = dh
+        self.event_names = FormattedList([''])
         self.night_time = Duration(0)
         self.xduty_time = Duration(0)
         self.xblock = Duration(0)
@@ -220,9 +212,12 @@ class CreditTable(object):
         self.credit_rows = []
         self._totals = None
 
-    def append(self, credit_row):
+    def append(self, credit_holder):
         """appends a row to the current table"""
-        self.credit_rows.append(credit_row)
+        if isinstance(credit_holder, CreditRow):
+            self.credit_rows.append(credit_holder)
+        else:
+            self.credit_rows.extend(credit_holder.credit_rows)
 
     def calculate_totals(self):
         credits_array = np.array([row.as_list() for row in self.credit_rows])

@@ -88,11 +88,11 @@ class Menu:
         print(self.line)
 
     def credits(self):
-        creditator = Creditator('SOB', 'SO01')
-        credit_table = creditator.from_line(self.line)
+        self.line.creditator = Creditator('SOB', 'SO01')
+        credit_table = self.line.get_credit_holder()
         print(credit_table)
         print(credit_table.calculate_totals())
-        print(credit_table.payable())
+        # print(credit_table.payable())
         # print()
         # print(40 * "*")
         # print()
