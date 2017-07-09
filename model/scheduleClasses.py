@@ -60,6 +60,9 @@ class Marker(object):
     def compute_basic_credits(self, creditator):
         return None
 
+    def get_credit_holder(self, creditator):
+        return None
+
     def __str__(self):
         template = "{0.name} {0.begin:%d%b} BEGIN {0.begin:%H%M} END {0.end:%H%M}"
         return template.format(self)
@@ -449,7 +452,9 @@ class Line(object):
         credit_table = self.creditator.new_credit_table()
         for duty in self.duties:
             # TODO : Remove the duties selection up to the class definition
-            credit_table.append(duty.get_credit_holder(self.creditator))
+            credit_holder = duty.get_credit_holder(self.creditator)
+            if credit_holder:
+                credit_table.append(credit_holder)
             # if set(credit_row.event_names).intersection(['X', 'XX', 'VA', 'RZ']):
             #     pass
             # elif duty_day.begin.month is not self.month:

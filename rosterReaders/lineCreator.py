@@ -1,5 +1,5 @@
 from data import rules
-from model.scheduleClasses import Line, Flight, GroundDuty, DutyDay, Trip, Itinerary
+from model.scheduleClasses import Line, Flight, GroundDuty, DutyDay, Trip, Itinerary, Marker
 from datetime import datetime, timedelta
 
 
@@ -18,6 +18,7 @@ class Liner(object):
         month = self.date_tracker.month
         year = self.date_tracker.year
         self.line = Line(month, year)
+        self.unrecognized_events = []
 
     def build_line(self):
         """Returns a Line object containing all data read from the text file
@@ -36,12 +37,7 @@ class Liner(object):
             # print("day ", rosterDay.day, " replaced in datetracker now ",
             #       self.date_tracker)
 
-            if 1 <= len(rosterDay.name) <= 2:
-                # Found groundDuty information
-                duty_day = self.from_ground_itinerary(rosterDay)
-                self.line.append(duty_day)
-
-            else:
+            if len(rosterDay.name) == 4:
                 # Found trip information
                 trip_number = rosterDay.name
                 duty_day = self.from_flight_itinerary(rosterDay)
@@ -55,6 +51,18 @@ class Liner(object):
 
                 # print("Adding duty_day ")
                 trip.append(duty_day)
+
+            elif rosterDay.name in ['VA', 'X', 'XX', 'TO']:
+                marker = self.from_marker(rosterDay)
+                self.line.append(marker)
+            elif rosterDay.name == 'RZ':
+                # We don't need this marker
+                pass
+            elif len(rosterDay.name) == 2:
+                duty_day = self.from_ground_itinerary(rosterDay)
+                self.line.append(duty_day)
+            else:
+                self.unrecognized_events.append(rosterDay.name)
 
     def from_flight_itinerary(self, roster_day):
         """Given a group of duties, add them to a DutyDay"""
@@ -82,6 +90,17 @@ class Liner(object):
             i = GroundDuty(rD.name, None, itinerary)
         duty_day.append(i)
         return duty_day
+
+    def from_marker(self, rD):
+        """return marker data, marker's don't have credits """
+        itinerary = self.itinerary_builder.convert(self.date_tracker.dated,
+                                                   rD.sequence['begin'],
+                                                   rD.sequence['end'])
+        if self.line_type == 'scheduled':
+            marker = Marker(rD.name, itinerary)
+        else:
+            marker = Marker(rD.name, None, itinerary)
+        return marker
 
 
 class ItinBuilder(object):

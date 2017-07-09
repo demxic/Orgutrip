@@ -72,11 +72,11 @@ class Menu:
         dt = DateTracker(rr.year, rr.month, rr.carry_in)
         print("Date Tracker: ", dt)
         print()
-        print("Printing txtroster line by line")
-        print(40*"*")
-        for row in rr.roster_days:
-            print(row)
-        print(40 * "*")
+        # print("Printing txtroster line by line")
+        # print(40*"*")
+        # for row in rr.roster_days:
+        #     print(row)
+        # print(40 * "*")
         print("\nCreating a Liner . . . ")
         liner = Liner(dt, rr.roster_days, 'scheduled')
         liner.build_line()
@@ -151,19 +151,23 @@ class Menu:
         conn = sqlite3.connect('C:\\Users\\Xico\\Dropbox\\PyCharmProjects\\Orgutrip\\data\\flights.db')
         c = conn.cursor()
         for duty_day in self.line.return_duty_days():
-            for flight in duty_day.events:
-                print(50 * '*')
-                print("Flight's actual_itinerary itinerary: ", flight.name)
-                print(flight.actual_itinerary)
-                print()
-                for row in c.execute(SQL, [flight.name]):
-                    begin = datetime.strptime(row[0]+row[3], "%Y-%m-%d%H%M")
-                    duration = timedelta(minutes = int(row[5]))
-                    scheduled_itinerary = Itinerary.from_timedelta(begin, duration)
-                    print("Flight's scheduled itinerary: ", flight.name)
+            try:
+                events = duty_day.events
+                for flight in duty_day.events:
+                    print(50 * '*')
+                    print("Flight's actual_itinerary itinerary: ", flight.name)
+                    print(flight.actual_itinerary)
                     print()
-                flight.published_itinerary = scheduled_itinerary
-                print(flight.published_itinerary)
+                    for row in c.execute(SQL, [flight.name]):
+                        begin = datetime.strptime(row[0]+row[3], "%Y-%m-%d%H%M")
+                        duration = timedelta(minutes = int(row[5]))
+                        scheduled_itinerary = Itinerary.from_timedelta(begin, duration)
+                        print("Flight's scheduled itinerary: ", flight.name)
+                        print()
+                    flight.published_itinerary = scheduled_itinerary
+                    print(flight.published_itinerary)
+            except:
+                pass
         conn.close()
 
     def quit(self):
