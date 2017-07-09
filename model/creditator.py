@@ -25,6 +25,12 @@ MAXIMA_IRREBASABLE_VUELO_TRAN = Duration(13 * 60)
 JORNADA_ORDINARIA_SERVICIO_TRAN = Duration(10 * 60)
 MAXIMA_IRREBASABLE_SERVICIO_TRAN = Duration(15 * 60)
 
+#TABLA 2 Largo alcance
+JORNADA_ORDINARIA_VUELO_LARGO_ALCANCE = Duration(8 * 60)
+MAXIMA_ASIGNABLE_VUELO_LARGO_ALCANCE = Duration(13 * 60)
+JORNADA_ORDINARIA_SERVICIO_LARGO_ALCANCE = Duration(10 * 60)
+MAXIMA_ASIGNABLE_SERVICIO_LARGO_ALCANCE = Duration(15 * 60)
+
 # TABLA 5 Jornada transoceanica especial
 JORNADA_ORDINARIA_VUELO_TRANSP = Duration(8 * 60)
 MAXIMA_IRREBASABLE_VUELO_TRANSP = Duration(16 * 60)
@@ -141,11 +147,22 @@ class Creditator(object):
                                     a) MUST be transoceanic
                                     b) scheduled block time > 13:00 hrs
                                     c) scheduled duty time  > 15:00 hrs
+           - long haul :
+                                    a) AND At least one leg > 4:30 hrs
+                                    b) AND At most two legs
+                                    c) AND
+                                        - OR    BLK > 10:00
+                                        - OR    DUTY > 12:00
+                                        - OR    DUTY > 09:30 AND  DUTY.OVERLAPS(00:59, 04:59) inclusive
            """
         if set(credit_row.routing).intersection(TRANSOCEANIC):
             credit_row.duty_type = 'transoceanic'
             if (credit_row.dh + credit_row.block) > MINIMUM_BLOCK or credit_row.duty_time > MINIMUM_DUTY:
                 credit_row.duty_type = 'special trans'
+        # TODO : Implement the Long Haul definition
+        if len(credit_row.event_names) < 3:
+            pass
+
 
     def new_credit_table(self):
         return CreditTable()
