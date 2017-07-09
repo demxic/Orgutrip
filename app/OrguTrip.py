@@ -14,8 +14,8 @@ from rosterReaders.txtroster import RosterReader
 # summaryFile = "C:\\Users\\Xico\\Google Drive\\Sobrecargo\\Resumen de horas\\Rol-2017-02-R.txt"
 
 #Mis roles
-rolFile = "C:\\Users\\Xico\\Google Drive\\Sobrecargo\\roles\\201703.txt"
-summaryFile = "C:\\Users\\Xico\\Google Drive\\Sobrecargo\\Resumen de horas\\2017\\res201703.txt"
+rolFile = "C:\\Users\\Xico\\Google Drive\\Sobrecargo\\roles\\201705.txt"
+summaryFile = "C:\\Users\\Xico\\Google Drive\\Sobrecargo\\Resumen de horas\\2017\\res201705.txt"
 
 
 class Menu:
@@ -88,11 +88,12 @@ class Menu:
         print(self.line)
 
     def credits(self):
-        self.line.creditator = Creditator('SOB', 'SO01')
-        credit_table = self.line.get_credit_holder()
+        creditator = Creditator('SOB', 'SO01', self.line.month)
+        print(creditator.header)
+        credit_table = self.line.calculate_credits(creditator)
         print(credit_table)
         print(credit_table.calculate_totals())
-        # print(credit_table.payable())
+        print(credit_table.payable())
         # print()
         # print(40 * "*")
         # print()

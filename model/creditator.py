@@ -50,7 +50,7 @@ def get_rules_for(position, group):
 
 class Creditator(object):
 
-    def __init__(self, position: str = None, group: str = None) -> None:
+    def __init__(self, position: str = None, group: str = None, month_scope =None) -> None:
         """According to the position and group, creditator should load the corresponding
         rules to build credit objects
         :rtype: None"""
@@ -58,13 +58,15 @@ class Creditator(object):
         self.group = group
         self.rules = None
         self.set_rules()
+        self.month_scope = month_scope
+        self.header = 'D  RUTA                 SERVICIOS              TIPO DE JORNADA       FIMA  CIERRE    ' \
+                 'DUTY  BLK   DH    NOCT  XBLK  XDTY  IRRE  RECE  PLAT'
 
     def set_rules(self):
         pass
 
     def calculate_pending_rest(self, rest):
         pending_rest = RECESO_CONTINENTAL - rest
-        print("found a pending_rest: ", pending_rest)
         return pending_rest
 
     def to_credit_row(self, duty_day):
@@ -154,8 +156,6 @@ class CreditRow(object):
                               "{0.release:%H:%M}    "
     numeric_section_template = " {0.duty_time:3} {0.block:3} {0.dh:3} {0.night_time:3} {0.xblock:3} " \
                                "{0.xduty_time:3} {0.maxirre:3} {0.pending_rest:3} {0.xturn:3}"
-    header = 'D  RUTA                 SERVICIOS              TIPO DE JORNADA       FIMA  CIERRE    ' \
-             'DUTY  BLK   DH    NOCT  XBLK  XDTY  IRRE  RECE  PLAT'
 
     def __init__(self, duty_day=None):
         """A CreditRow models all credits for a given DutyDay
@@ -191,6 +191,11 @@ class CreditRow(object):
         credit_row.xblock = xblock
         credit_row.maxirre = maxirre
         return credit_row
+
+    def calculate_totals(self):
+        credits_array = self.as_list()
+        formatted_totals = TotalsRow(credits_array)
+        return formatted_totals
 
     def __add__(self, other):
         this_list = self.as_list()
@@ -256,20 +261,21 @@ class CreditTable(object):
         t_ext_vuelo:    {:2}
         t_ext_servicio: {:2}
         t_ext_nocturno: {:2}
-        """.format(t_ext_vuelo, t_ext_servicio, t_ext_nocturno)
+        maxirre: {:2}
+        """.format(t_ext_vuelo, t_ext_servicio, t_ext_nocturno, maxirre)
 
     def __str__(self):
         output = ''
         for creditRow in self.credit_rows:
             output += str(creditRow) + "\n"
-        return CreditRow.header + "\n" + output
+        return output.rstrip()
 
 
 class TotalsRow(list):
 
     def __str__(self):
         """Use the class variable template"""
-        string_section = '   TOTALES                                                                          '
+        string_section = '   TOTALES                                                                           '
         numeric_section = ''
         for element in self:
             numeric_section = numeric_section + '{:3}'.format(element) + ' '

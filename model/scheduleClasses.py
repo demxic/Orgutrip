@@ -60,7 +60,7 @@ class Marker(object):
     def compute_basic_credits(self, creditator):
         return None
 
-    def get_credit_holder(self, creditator):
+    def calculate_credits(self, creditator):
         return None
 
     def __str__(self):
@@ -229,7 +229,7 @@ class DutyDay(object):
             total_dh += dh
         return total_block, total_dh, self.duration
 
-    def get_credit_holder(self, creditator):
+    def calculate_credits(self, creditator):
         return creditator.to_credit_row(self)
 
     def append(self, current_duty):
@@ -300,15 +300,15 @@ class Trip(object):
         tafb = Duration(self.release - self.report)
         return total_block + total_dh, total_block, total_dh, tafb
 
-    def get_credit_holder(self, creditator):
+    def calculate_credits(self, creditator):
         '''Returns a credit holder '''
         credit_table = creditator.new_credit_table()
         for duty_day in self.duty_days:
-            credit_row = duty_day.get_credit_holder(creditator)
-            credit_table.append(credit_row)
+            credit_row = duty_day.calculate_credits(creditator)
+            if duty_day.begin.month == creditator.month_scope:
+                credit_table.append(credit_row)
         for index, rest in enumerate(self.rests):
             pending_rest = creditator.calculate_pending_rest(rest)
-            print("pending rest for day ", pending_rest, duty_day.begin.day)
             if pending_rest:
                 credit_table[index].pending_rest = pending_rest
 
@@ -448,19 +448,12 @@ class Line(object):
     def append(self, duty):
         self.duties.append(duty)
 
-    def get_credit_holder(self):
-        credit_table = self.creditator.new_credit_table()
+    def calculate_credits(self, creditator):
+        credit_table = creditator.new_credit_table()
         for duty in self.duties:
-            # TODO : Remove the duties selection up to the class definition
-            credit_holder = duty.get_credit_holder(self.creditator)
+            credit_holder = duty.calculate_credits(creditator)
             if credit_holder:
                 credit_table.append(credit_holder)
-            # if set(credit_row.event_names).intersection(['X', 'XX', 'VA', 'RZ']):
-            #     pass
-            # elif duty_day.begin.month is not self.month:
-            #     pass
-            # else:
-            #     credit_table.append(credit_row)
         return credit_table
 
     def return_duty(self, dutyId):
@@ -489,7 +482,7 @@ class Line(object):
         for element in self.duties:
             if isinstance(element, Trip):
                 dd.extend(element.duty_days)
-            else:
+            elif isinstance(element, DutyDay):
                 dd.append(element)
         return dd
 
