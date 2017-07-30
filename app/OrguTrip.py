@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 from model.creditator import Creditator
 from model.crewmember import CrewMember
 from model.elements import DateTracker
-from model.scheduleClasses import Itinerary
+from model.scheduleClasses import Itinerary, Trip, DutyDay
 from rosterReaders.lineCreator import Liner
 from rosterReaders.txtroster import RosterReader
 
@@ -14,8 +14,8 @@ from rosterReaders.txtroster import RosterReader
 # summaryFile = "C:\\Users\\Xico\\Google Drive\\Sobrecargo\\Resumen de horas\\Rol-2017-02-R.txt"
 
 #Mis roles
-rolFile = "C:\\Users\\Xico\\Google Drive\\Sobrecargo\\roles\\Rol-2017-07-P.txt"
-summaryFile = "C:\\Users\\Xico\\Google Drive\\Sobrecargo\\Resumen de horas\\2017\\res201705.txt"
+rolFile = "C:\\Users\\Xico\\Google Drive\\Sobrecargo\\roles\\201706.txt"
+summaryFile = "C:\\Users\\Xico\\Google Drive\\Sobrecargo\\Resumen de horas\\2017\\res201706.txt"
 
 
 class Menu:
@@ -31,6 +31,7 @@ class Menu:
             "5": self.store,
             "6": self.read_flights_summary,
             "7": self.retrieve_flights_from_database,
+            "8": self.print_components,
             "10": self.quit}
 
     @staticmethod
@@ -45,6 +46,7 @@ class Menu:
         5. Almacenar tu rol en la base de datos.
         6. Cargar tu resumen de horas mensuales.
         7. Cargar tiempos por itinerario de la base de datos.
+        8. Imprimir cada componente
         10. Quit
         ''')
 
@@ -170,6 +172,19 @@ class Menu:
             except:
                 pass
         conn.close()
+
+    def print_components(self):
+        for duty in self.line:
+            if isinstance(duty, Trip):
+                for duty_day in duty.duty_days:
+                    for event in duty_day.events:
+                        print(event)
+            elif isinstance(duty, DutyDay):
+                for event in duty_day.events:
+                    print(event)
+            else:
+                event = duty
+                print(event)
 
     def quit(self):
         print("adiós")

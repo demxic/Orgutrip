@@ -2,6 +2,8 @@ from data import rules
 from model.scheduleClasses import Line, Flight, GroundDuty, DutyDay, Trip, Itinerary, Marker
 from datetime import datetime, timedelta
 
+from model.timeClasses import Duration
+
 
 class Liner(object):
     """´Turns a Roster Reader into a bidline"""
@@ -24,33 +26,32 @@ class Liner(object):
         """Returns a Line object containing all data read from the text file
         but now turned into corresponding objects"""
         trip_number_tracker = '0000'
-        trip = None
-        # print()
-        # print()
-        # print()
-        # print(100*'*')
-        # print("We are now building a line ")
-
         for rosterDay in self.roster_days:
-            # Go over all roster days
             self.date_tracker.replace(rosterDay.day)
-            # print("day ", rosterDay.day, " replaced in datetracker now ",
-            #       self.date_tracker)
-
             if len(rosterDay.name) == 4:
                 # Found trip information
-                trip_number = rosterDay.name
                 duty_day = self.from_flight_itinerary(rosterDay)
-
+                trip_number = rosterDay.name
                 if trip_number != trip_number_tracker:
                     # A new trip has been found, let's create it
-                    # print("A new trip has been found ")
-                    trip = Trip(trip_number, duty_day.report, rules)
+                    trip = Trip(trip_number, duty_day.report)
                     trip_number_tracker = trip.number
+                    trip.append(duty_day)
                     self.line.append(trip)
-
-                # print("Adding duty_day ")
-                trip.append(duty_day)
+                else:
+                    # Still the same trip
+                    trip = self.line.duties[-1]
+                    previous_duty_day = trip[-1]
+                    rest = duty_day.report - previous_duty_day.release
+                    # Checking for events worked in different calendar days but belonging to the same duty day
+                    if rest.total_seconds() <= rules.MINIMUM_REST_TIME:
+                        trip.pop()
+                        duty_day.merge(previous_duty_day)
+                    trip.append(duty_day)
+                    self.line.duties[-1] = trip
+                    #TODO : MOVE rests logic from here
+                    #trip.rests.append(Duration(rest))
+                    trip.layovers.append(duty_day.events[-1].destination)
 
             elif rosterDay.name in ['VA', 'X', 'XX', 'TO']:
                 marker = self.from_marker(rosterDay)
@@ -67,9 +68,7 @@ class Liner(object):
     def from_flight_itinerary(self, roster_day):
         """Given a group of duties, add them to a DutyDay"""
         duty_day = DutyDay()
-        # print("print roster_day.sequence: ", roster_day.sequence)
         for itin in roster_day.sequence:
-            # print("print itin: ", itin)
             itinerary = self.itinerary_builder.convert(self.date_tracker.dated, itin.begin, itin.end)
             if self.line_type == 'scheduled':
                 f = Flight(itin.name, itin.origin, itin.destination, itinerary)

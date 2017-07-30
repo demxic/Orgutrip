@@ -78,20 +78,11 @@ def clean(roster_day):
     """
         Given a roster_day as a String, clean it up and return it as a DotDict
     """
-    # print("\n\nIam inside the clean(roster_day) method")
-    # print("roster_day (as a Dotdict): ")
     roster_day = Dotdict(**roster_day)
-    # print("\n\t\t", roster_day)
     if len(roster_day.name) == 4:
-        # print("the above roster_day belongs to a Trip")
-        # Found information of a trip
-        # Turn all flights in this roster day into a list
         flights = airItineraryRE.finditer(roster_day.sequence)
         cleaned_seq = [Dotdict(flight.groupdict()) for flight in flights]
-        # print("And the cleaned_seq from roster_day looks like this: ")
-        # print("\n\t\t", cleaned_seq)
     else:
-        # Found information of a ground duty
         try:
             cleaned_seq = Dotdict(itineraryRE.search(roster_day.sequence).groupdict())
         except:
@@ -103,9 +94,5 @@ def clean(roster_day):
             cleaned_seq = Dotdict(itineraryRE.search(roster_day.sequence).groupdict())
 
     roster_day.sequence = cleaned_seq
-    # print("This is how roster_day looks after being cleaned up: ")
-    # print("\n\t\t", roster_day)
-    # print("\n\n")
-
     return roster_day
 

@@ -1,6 +1,4 @@
 from datetime import timedelta
-
-from model.creditator import CreditTable, Creditator
 from model.timeClasses import Duration
 
 
@@ -161,8 +159,8 @@ class Flight(GroundDuty):
 
     def __str__(self):
         template = """
-        {0.begin:%d%b} {0.name:>6s} {0.origin} {0.begin:%H%M} {0.destination} {0.end:%H%M}
-              {0.duration:2}        {eq}
+        {0.begin:%d%b} {0.name:>6s} {0.origin} {0.begin:%H%M} {0.destination} {0.end:%H%M}\
+        {0.duration:2}        {eq}
         """
         eq = self.equipment if self.equipment else 3*''
         return template.format(self, eq=eq)
@@ -236,15 +234,14 @@ class DutyDay(object):
         """Add a duty, one by one  to this DutyDay"""
         self.events.append(current_duty)
 
-    def combine(self, other):
-        dd = DutyDay()
+    def merge(self, other):
         if self.report <= other.report:
             all_events = self.events + other.events
         else:
             all_events = other.events + self.events
+        self.events = []
         for event in all_events:
-            dd.append(event)
-        return dd
+            self.events.append(event)
 
     def __str__(self):
         """The string representation of the current DutyDay"""
@@ -272,13 +269,11 @@ class Trip(object):
         It should be started by passing in a Trip number
     """
 
-    def __init__(self, number, dated, rules=None):
+    def __init__(self, number, dated):
         self.number = number
         self.duty_days = []
         self.dated = dated
-        self.rules = rules
         self.layovers = []
-        self.rests = []
 
     @property
     def report(self):
@@ -287,6 +282,11 @@ class Trip(object):
     @property
     def release(self):
         return self.duty_days[-1].release
+
+    @property
+    def rests(self):
+        """Returns a list of all calculated rests between each duty_day"""
+        return [Duration(j.report-i.release) for i, j in zip(self.duty_days[:-1], self.duty_days[1:])]
 
     def compute_basic_credits(self):
         total_block = Duration(0)
@@ -315,28 +315,11 @@ class Trip(object):
         return credit_table
 
     def append(self, duty_day):
-        """ Will append duty_day to self provided the minimum rest time"""
-        try:
-            previous_duty_day = self.duty_days[-1]
-            rest = duty_day.report - previous_duty_day.release
-            # Checking for events worked in different calendar days but belong to the same duty day
-            # TODO : This needs to take into account rest time, algorithm not working properly
-            if rest.total_seconds() <= self.rules.MINIMUM_REST_TIME:
-                self.pop()
-                duty_day = previous_duty_day.combine(duty_day)
-            rest = duty_day.report - previous_duty_day.release
-            self.rests.append(Duration(rest))
-            self.layovers.append(duty_day.events[-1].destination)
-        except IndexError:
-            pass
-
+        """Simply append a duty_day"""
         self.duty_days.append(duty_day)
 
     def pop(self, index=-1):
-        try:
-            return self.duty_days.pop(index)
-        except IndexError:
-            return None
+        return self.duty_days.pop(index)
 
     def __delitem__(self, key):
         del self.duty_days[key]
@@ -392,47 +375,6 @@ class Trip(object):
         total, block, dh, tafb = self.compute_basic_credits()
         footer = footer_template.format(tl=total, bl=block, cr=dh, tafb=tafb)
         return header + body + footer
-
-    # def credits(self, creditator):
-    #     """Return the routing and the total block, dh, and duty time accounted for
-    #     in a given duty day"""
-    #
-    #     credit_table = creditator.CreditTable()
-    #     for dutyDay in self.duty_days:
-    #         credit_table.append(dutyDay.credits(creditator))
-    #
-    #     return credit_table
-
-    # def append(self, duty_day):
-    # THIS APPEND IS ONE VERSION BEFORE CURRENT AND IT HELPS TO DEBUG
-    #     """ Will append duty_day to self provided the minimum rest time"""
-    #     previous_duty_day = self[-1]
-    #
-    #     if previous_duty_day:
-    #         print("actual_itinerary duty_day begin ", duty_day.begin)
-    #         print("previous duty_day end ", previous_duty_day.end)
-    #         rest = duty_day.begin - previous_duty_day.end
-    #         print("duty day rest: ", rest.total_seconds())
-    #         if rest.total_seconds() <= self.rules.MINIMUM_REST_TIME:
-    #             print("combining duty days with rest less than minimum required: ")
-    #             print("previous day :")
-    #             print(previous_duty_day)
-    #             print("previous duty day begin ", previous_duty_day.begin)
-    #             print("previous duty day end ", previous_duty_day.end)
-    #             print()
-    #             print("current day :")
-    #             print("current duty day begin ", duty_day.begin)
-    #             print("current duty day end ", duty_day.end)
-    #             print(duty_day)
-    #             print()
-    #             print()
-    #             self.pop()
-    #             duty_day = previous_duty_day.combine(duty_day)
-    #             print("New combined day: ")
-    #             print(duty_day)
-    #             print()
-    #
-    #     self.duty_days.append(duty_day)
 
 
 class Line(object):
