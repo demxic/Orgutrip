@@ -313,7 +313,7 @@ class Trip(object):
                 credit_table.append(credit_row)
         for index, rest in enumerate(self.rests):
             pending_rest = creditator.calculate_pending_rest(rest)
-            if pending_rest:
+            if pending_rest == 0:
                 credit_table[index].pending_rest = pending_rest
 
         return credit_table
