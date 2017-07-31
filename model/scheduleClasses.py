@@ -273,7 +273,6 @@ class Trip(object):
         self.number = number
         self.duty_days = []
         self.dated = dated
-        self.layovers = []
 
     @property
     def report(self):
@@ -287,6 +286,11 @@ class Trip(object):
     def rests(self):
         """Returns a list of all calculated rests between each duty_day"""
         return [Duration(j.report-i.release) for i, j in zip(self.duty_days[:-1], self.duty_days[1:])]
+
+    @property
+    def layovers(self):
+        """Returns a list of all layover stations """
+        return [duty_day.events[-1].destination for duty_day in self.duty_days]
 
     def compute_basic_credits(self):
         total_block = Duration(0)

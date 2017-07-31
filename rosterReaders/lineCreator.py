@@ -49,9 +49,6 @@ class Liner(object):
                         duty_day.merge(previous_duty_day)
                     trip.append(duty_day)
                     self.line.duties[-1] = trip
-                    #TODO : MOVE rests logic from here
-                    #trip.rests.append(Duration(rest))
-                    trip.layovers.append(duty_day.events[-1].destination)
 
             elif rosterDay.name in ['VA', 'X', 'XX', 'TO']:
                 marker = self.from_marker(rosterDay)
