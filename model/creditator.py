@@ -50,6 +50,8 @@ RECESO_CONTINENTAL = Duration(12*60)
 RECESO_TRANS = Duration(48*60)
 
 
+
+
 def get_rules_for(position, group):
     pass
 
@@ -147,9 +149,9 @@ class Creditator(object):
                                     a) MUST be transoceanic
                                     b) scheduled block time > 13:00 hrs
                                     c) scheduled duty time  > 15:00 hrs
-           - long haul :
-                                    a) AND At least one leg > 4:30 hrs
-                                    b) AND At most two legs
+           - long haul : Any flight with
+                                    a) #of legs <= 2
+                                    b) AND at least one leg > 4:30 hrs
                                     c) AND
                                         - OR    BLK > 10:00
                                         - OR    DUTY > 12:00
@@ -160,7 +162,7 @@ class Creditator(object):
             if (credit_row.dh + credit_row.block) > MINIMUM_BLOCK or credit_row.duty_time > MINIMUM_DUTY:
                 credit_row.duty_type = 'special trans'
         # TODO : Implement the Long Haul definition
-        if len(credit_row.event_names) < 3:
+        if len(credit_row.event_names) <= 2:
             pass
 
 

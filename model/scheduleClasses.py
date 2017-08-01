@@ -25,6 +25,9 @@ class Itinerary(object):
     def duration(self):
         return Duration(self.end - self.begin)
 
+    def compute_credits(self, creditator):
+        return None
+
     def __str__(self):
         template = "{0.begin:%d%b} BEGIN {0.begin:%H%M} END {0.end:%H%M}"
         return template.format(self)
@@ -55,10 +58,7 @@ class Marker(object):
         """How long is the Marker"""
         return Duration(self.end - self.begin)
 
-    def compute_basic_credits(self, creditator):
-        return None
-
-    def calculate_credits(self, creditator):
+    def compute_credits(self, creditator = None):
         return None
 
     def __str__(self):
@@ -84,8 +84,8 @@ class GroundDuty(Marker):
     def release(self):
         return self.end
 
-    def compute_basic_credits(self):
-        return self.block, self.dh
+    def compute_credits(self, creditator=None):
+        return {'block': self.block, 'dh': self.dh}
 
     @property
     def block(self):
@@ -112,12 +112,11 @@ class GroundDuty(Marker):
         turn: turn around time
         eq : equipment"""
 
-        # TODO : This might be printing always a block time even when deadheding
         template = """
         {0.begin:%d%b} {rpt:4s} {0.name:<6s} {0.origin} {0.begin:%H%M} {0.destination} {0.end:%H%M} {rls:4s} {block:0}       {turn:4s}       {eq}"""
         eq = self.equipment if self.equipment else 3 * ''
-        block, _ = self.compute_basic_credits()
-        return template.format(self, rpt=rpt, rls=rls, block=block, turn=turn, eq=eq)
+        block, _ = self.compute_credits()
+        return template.format(self, rpt=rpt, rls=rls, turn=turn, eq=eq, **self.compute_credits())
 
 
 class Flight(GroundDuty):
@@ -153,9 +152,6 @@ class Flight(GroundDuty):
             return Duration(0)
         else:
             return self.duration
-
-    def compute_basic_credits(self):
-        return self.block, self.dh
 
     def __str__(self):
         template = """
@@ -214,7 +210,7 @@ class DutyDay(object):
     def origin(self):
         return self.events[0].origin
 
-    def compute_basic_credits(self):
+    def compute_credits(self):
         """
         1. Calculate dh and block time
         2. Calulate all turnarond times
@@ -222,10 +218,11 @@ class DutyDay(object):
         total_block = Duration(0)
         total_dh = Duration(0)
         for event in self.events:
-            block, dh = event.compute_basic_credits()
-            total_block += block
-            total_dh += dh
-        return total_block, total_dh, self.duration
+            credits = event.compute_credits()
+            total_block += credits['block']
+            total_dh += credits['dh']
+        credits['daily'] = self.duration
+        return credits
 
     def calculate_credits(self, creditator):
         return creditator.to_credit_row(self)
@@ -245,7 +242,7 @@ class DutyDay(object):
 
     def __str__(self):
         """The string representation of the current DutyDay"""
-        self.compute_basic_credits()
+        self.compute_credits()
         rpt = '{:%H%M}'.format(self.report)
         rls = '    '
         body = ''
@@ -297,10 +294,10 @@ class Trip(object):
         total_dh = Duration(0)
         total_daily = Duration(0)
         for duty_day in self.duty_days:
-            block, dh, daily = duty_day.compute_basic_credits()
-            total_block += block
-            total_dh += dh
-            total_daily += daily
+            credits_dict = duty_day.compute_credits()
+            total_block += credits_dict['block']
+            total_dh += credits_dict['dh']
+            total_daily += credits_dict['daily']
         tafb = Duration(self.release - self.report)
         return total_block + total_dh, total_block, total_dh, tafb
 
@@ -345,7 +342,7 @@ class Trip(object):
         DATE  RPT  FLIGHT DEPARTS  ARRIVES  RLS  BLK        TURN        EQ"""
 
         body_template = """{duty_day}
-                     {destination} {rest}                   {bl:0}BL {cr:0}CRD {tl:0}TL {dy:0}DY"""
+                     {destination} {rest}                   {block:0}BL {dh:0}CRD {total:0}TL {daily:0}DY"""
 
         footer_template = """
 
@@ -356,26 +353,20 @@ class Trip(object):
 
         for duty_day, rest in zip(self.duty_days, self.rests):
             rest = repr(rest)
-            block, dh, daily = duty_day.compute_basic_credits()
-            total = block + dh
+            credits_dict = duty_day.compute_credits()
+            credits_dict['total'] = credits_dict['block'] + credits_dict['dh']
             body = body + body_template.format(duty_day=duty_day,
                                                destination=duty_day.events[-1].destination,
                                                rest=rest,
-                                               bl=block,
-                                               cr=dh,
-                                               tl=total,
-                                               dy=daily)
+                                               **credits_dict)
         else:
             duty_day = self.duty_days[-1]
-            block, dh, daily = duty_day.compute_basic_credits()
-            total = block + dh
+            credits_dict = duty_day.compute_credits()
+            credits_dict['total'] = credits_dict['block'] + credits_dict['dh']
             body = body + body_template.format(duty_day=duty_day,
                                                destination='    ',
                                                rest='    ',
-                                               bl=block,
-                                               cr=dh,
-                                               tl=total,
-                                               dy=daily)
+                                               **credits_dict)
         total, block, dh, tafb = self.compute_basic_credits()
         footer = footer_template.format(tl=total, bl=block, cr=dh, tafb=tafb)
         return header + body + footer

@@ -5,16 +5,16 @@ from datetime import datetime, timedelta
 from model.creditator import Creditator
 from model.crewmember import CrewMember
 from model.elements import DateTracker
-from model.scheduleClasses import Itinerary, Trip, DutyDay
+from model.scheduleClasses import Itinerary, Trip, DutyDay, GroundDuty
 from rosterReaders.lineCreator import Liner
 from rosterReaders.txtroster import RosterReader
 
 # Roles de la Cuija
-# rolFile = "C:\\Users\\Xico\\Google Drive\\Sobrecargo\\roles\\Rol-2017-02-P.txt"
+rolFile = "C:\\Users\\Xico\\Google Drive\\Sobrecargo\\roles\\Rol-2017-07-P.txt"
 # summaryFile = "C:\\Users\\Xico\\Google Drive\\Sobrecargo\\Resumen de horas\\Rol-2017-02-R.txt"
 
 #Mis roles
-rolFile = "C:\\Users\\Xico\\Google Drive\\Sobrecargo\\roles\\201706.txt"
+#rolFile = "C:\\Users\\Xico\\Google Drive\\Sobrecargo\\roles\\201708.txt"
 summaryFile = "C:\\Users\\Xico\\Google Drive\\Sobrecargo\\Resumen de horas\\2017\\res201706.txt"
 
 
@@ -91,11 +91,13 @@ class Menu:
 
     def credits(self):
         creditator = Creditator('SOB', 'SO01', self.line.month)
-        print(creditator.header)
-        credit_table = self.line.calculate_credits(creditator)
-        print(credit_table)
-        print(credit_table.calculate_totals())
-        print(credit_table.payable())
+        for element in self.line:
+            print(element)
+        #print(creditator.header)
+        #credit_table = self.line.calculate_credits(creditator)
+        #print(credit_table)
+        #print(credit_table.calculate_totals())
+        #print(credit_table.payable())
         # print()
         # print(40 * "*")
         # print()
