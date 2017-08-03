@@ -25,7 +25,7 @@ MAXIMA_IRREBASABLE_VUELO_TRAN = Duration(13 * 60)
 JORNADA_ORDINARIA_SERVICIO_TRAN = Duration(10 * 60)
 MAXIMA_IRREBASABLE_SERVICIO_TRAN = Duration(15 * 60)
 
-#TABLA 2 Largo alcance
+# TABLA 2 Largo alcance
 JORNADA_ORDINARIA_VUELO_LARGO_ALCANCE = Duration(8 * 60)
 MAXIMA_ASIGNABLE_VUELO_LARGO_ALCANCE = Duration(13 * 60)
 JORNADA_ORDINARIA_SERVICIO_LARGO_ALCANCE = Duration(10 * 60)
@@ -42,14 +42,12 @@ MAXIMA_IRREBASABLE_SERVICIO_TRANSP = Duration(16 * 60)
 
 # Jornadas mensuales
 JORNADA_ORDINARIA_VUELO_MENSUAL = Duration(65 * 60)
-JORNADA_ORDINARIA_DH_MENSUAL = Duration(3*60)
+JORNADA_ORDINARIA_DH_MENSUAL = Duration(3 * 60)
 GARANTIA_HORAS_DE_VUELO_MENSUAL = Duration(80 * 60)
 
 # Otros créditos
-RECESO_CONTINENTAL = Duration(12*60)
-RECESO_TRANS = Duration(48*60)
-
-
+RECESO_CONTINENTAL = Duration(12 * 60)
+RECESO_TRANS = Duration(48 * 60)
 
 
 def get_rules_for(position, group):
@@ -57,8 +55,7 @@ def get_rules_for(position, group):
 
 
 class Creditator(object):
-
-    def __init__(self, position: str = None, group: str = None, month_scope =None) -> None:
+    def __init__(self, position: str = None, group: str = None, month_scope=None) -> None:
         """According to the position and group, creditator should load the corresponding
         rules to build credit objects
         :rtype: None"""
@@ -68,7 +65,7 @@ class Creditator(object):
         self.set_rules()
         self.month_scope = month_scope
         self.header = 'D  RUTA                 SERVICIOS              TIPO DE JORNADA       FIMA  CIERRE    ' \
-                 'DUTY  BLK   DH    NOCT  XBLK  XDTY  IRRE  RECE  PLAT'
+                      'DUTY  BLK   DH    NOCT  XBLK  XDTY  IRRE  RECE  PLAT'
 
     def set_rules(self):
         pass
@@ -77,40 +74,53 @@ class Creditator(object):
         pending_rest = RECESO_CONTINENTAL - rest
         return pending_rest
 
-    def to_credit_row(self, duty_day):
+    def to_credits_dict(self, duty_day):
         """
         Builds and returns a CreditRow from a given DutyDay
         """
-        credit_row = CreditRow(duty_day)
+        # 1. Init our credits_dict
+        duty_day.credits_dict.update({'day': duty_day.begin.day,
+                                      'routing': FormattedList([duty_day.origin]),
+                                      'report': duty_day.report,
+                                      'release': duty_day.release,
+                                      'duty_type': 'regular',
+                                      'event_names': FormattedList(['']),
+                                      'night_time': Duration(0),
+                                      'xduty_time': Duration(0),
+                                      'xblock': Duration(0),
+                                      'maxirre': Duration(0),
+                                      'pending_rest': Duration(0),
+                                      'xturn': Duration(0)})
 
+        # 2. Calculate night, event_names and routing
         for event in duty_day.events:
+            # TODO : I don´t like this, should think of using isinstance or another alternative
             if event.is_flight:
-                credit_row.night_time += Creditator.calculate_night_time(event.begin, event.end)
-            credit_row.event_names.append(event.name)
-            credit_row.routing.append(event.destination)
+                duty_day.credits_dict['night_time'] += Creditator.calculate_night_time(event.begin, event.end)
+            duty_day.credits_dict['event_names'].append(event.name)
+            duty_day.credits_dict['routing'].append(event.destination)
 
-        Creditator.credit_row_classifier(credit_row)
+        # 3. Classify duty
+        Creditator.credit_row_classifier(duty_day)
 
-        if credit_row.duty_type == 'regular':
-            credit_row.xblock = credit_row.block - JORNADA_ORDINARIA_VUELO_REGULAR
-            credit_row.xduty_time = credit_row.duty_time - JORNADA_ORDINARIA_SERVICIO_REGULAR
-            credit_row.maxirre = credit_row.duty_time - MAXIMA_IRREBASABLE_SERVICIO_REGULAR
-        elif credit_row.duty_type == 'transoceanic':
-            credit_row.xblock = credit_row.block - JORNADA_ORDINARIA_VUELO_TRAN
-            credit_row.xduty_time = credit_row.duty_time - JORNADA_ORDINARIA_SERVICIO_TRAN
-            credit_row.maxirre = credit_row.duty_time - MAXIMA_IRREBASABLE_SERVICIO_TRAN
+        if duty_day.credits_dict['duty_type'] == 'regular':
+            duty_day.credits_dict['xblock'] = duty_day.credits_dict['block'] - JORNADA_ORDINARIA_VUELO_REGULAR
+            duty_day.credits_dict['xduty_time'] = duty_day.credits_dict['daily'] - JORNADA_ORDINARIA_SERVICIO_REGULAR
+            duty_day.credits_dict['maxirre'] = duty_day.credits_dict['daily'] - MAXIMA_IRREBASABLE_SERVICIO_REGULAR
+        elif duty_day.credits_dict['duty_type'] == 'transoceanic':
+            duty_day.credits_dict['xblock'] = duty_day.credits_dict['block'] - JORNADA_ORDINARIA_VUELO_TRAN
+            duty_day.credits_dict['xduty_time'] = duty_day.credits_dict['daily'] - JORNADA_ORDINARIA_SERVICIO_TRAN
+            duty_day.credits_dict['maxirre'] = duty_day.credits_dict['daily'] - MAXIMA_IRREBASABLE_SERVICIO_TRAN
             # If there is a maxirre, normal xduty time ends where maxirre starts
-            if credit_row.maxirre > Duration(0):
-                credit_row.xduty_time = Duration(5 * 60)
-        elif credit_row.duty_type == 'special trans':
-            credit_row.xblock = credit_row.block - JORNADA_ORDINARIA_VUELO_TRANSP
-            credit_row.xduty_time = credit_row.duty_time - JORNADA_ORDINARIA_SERVICIO_TRANSP
-            credit_row.maxirre = credit_row.duty_time - MAXIMA_IRREBASABLE_SERVICIO_TRANSP
+            if duty_day.credits_dict['maxirre'] > Duration(0):
+                duty_day.credits_dict['xduty_time'] = Duration(5 * 60)
+        elif duty_day.credits_dict['duty_type'] == 'special trans':
+            duty_day.credits_dict['xblock'] = duty_day.credits_dict['block'] - JORNADA_ORDINARIA_VUELO_TRANSP
+            duty_day.credits_dict['xduty_time'] = duty_day.credits_dict['daily'] - JORNADA_ORDINARIA_SERVICIO_TRANSP
+            duty_day.credits_dict['maxirre'] = duty_day.credits_dict['daily'] - MAXIMA_IRREBASABLE_SERVICIO_TRANSP
             # If there is a maxirre, normal xduty time ends where maxirre starts
-            if credit_row.maxirre > Duration(0):
-                credit_row.xduty_time = Duration(6 * 60)
-
-        return credit_row
+            if duty_day.credits_dict['maxirre'] > Duration(0):
+                duty_day.credits_dict['xduty_time'] = Duration(6 * 60)
 
     @staticmethod
     def calculate_night_time(begin, end):
@@ -127,9 +137,11 @@ class Creditator(object):
         nightinter = [NIGHTTIME_BEGIN, MIDNIGHT]
 
         if BEGIN > END:  # Event starts and ends in different days
-            total = Creditator.overlapping(nightinter, [BEGIN, MIDNIGHT]) + Creditator.overlapping(morninginter, [0, END])
+            total = Creditator.overlapping(nightinter, [BEGIN, MIDNIGHT]) + Creditator.overlapping(morninginter,
+                                                                                                   [0, END])
         else:  # Event starts and ends in same day
-            total = Creditator.overlapping(morninginter, [BEGIN, END]) + Creditator.overlapping(nightinter, [BEGIN, END])
+            total = Creditator.overlapping(morninginter, [BEGIN, END]) + Creditator.overlapping(nightinter,
+                                                                                                [BEGIN, END])
 
         return Duration(total)
 
@@ -141,7 +153,7 @@ class Creditator(object):
         return max(0, min(a[1], b[1]) - max(a[0], b[0]))
 
     @staticmethod
-    def credit_row_classifier(credit_row):
+    def credit_row_classifier(duty_day):
         """Given a DutyDay, this classifier will insert the following tags:
            - regular : any continental flight under 10:00 duty time. It is the default value
            - transoceanic : MAD, CDG, MXP, FCO, LHR, AMS, SVO, BCN, MUC, FRA, NRT, ICN, PVG, PEK
@@ -157,14 +169,13 @@ class Creditator(object):
                                         - OR    DUTY > 12:00
                                         - OR    DUTY > 09:30 AND  DUTY.OVERLAPS(00:59, 04:59) inclusive
            """
-        if set(credit_row.routing).intersection(TRANSOCEANIC):
-            credit_row.duty_type = 'transoceanic'
-            if (credit_row.dh + credit_row.block) > MINIMUM_BLOCK or credit_row.duty_time > MINIMUM_DUTY:
-                credit_row.duty_type = 'special trans'
+        if set(duty_day.credits_dict['routing']).intersection(TRANSOCEANIC):
+            duty_day.credits_dict['duty_type'] = 'transoceanic'
+            if (duty_day.credits_dict['total']) > MINIMUM_BLOCK or duty_day.credits_dict['daily'] > MINIMUM_DUTY:
+                duty_day.credits_dict['duty_type'] = 'special trans'
         # TODO : Implement the Long Haul definition
-        if len(credit_row.event_names) <= 2:
+        if len(duty_day.credits_dict['event_names']) <= 2:
             pass
-
 
     def new_credit_table(self):
         return CreditTable()
@@ -183,15 +194,15 @@ class CreditRow(object):
         if duty_day:
             self.day = duty_day.begin.day
             self.routing = FormattedList([duty_day.origin])
-            self.block, self.dh, self.duty_time = duty_day.compute_basic_credits()
+            self.block, self.dh, self.duty_time = duty_day.compute_credits()
             self.report = duty_day.report
             self.release = duty_day.release
-        else :
-            self.day = 2*' '
-            self.routing = 3*' '
+        else:
+            self.day = 2 * ' '
+            self.routing = 3 * ' '
             self.block, self.dh, self.duty_time = Duration(0), Duration(0), Duration(0)
-            self.report = 5*' '
-            self.release = 5*' '
+            self.report = 5 * ' '
+            self.release = 5 * ' '
         self.duty_type = 'regular'
         self.event_names = FormattedList([''])
         self.night_time = Duration(0)
@@ -266,12 +277,12 @@ class CreditTable(object):
         pending_rest = self._totals[7]
         xturn = self._totals[8]
 
-        t_ext_vuelo = block +\
+        t_ext_vuelo = block + \
                       dh + \
-                      xblock +\
-                      maxirre +\
-                      pending_rest+\
-                      xturn\
+                      xblock + \
+                      maxirre + \
+                      pending_rest + \
+                      xturn \
                       - JORNADA_ORDINARIA_VUELO_MENSUAL
         t_ext_servicio = self._totals[5]
         t_ext_nocturno = self._totals[3]
@@ -291,7 +302,6 @@ class CreditTable(object):
 
 
 class TotalsRow(list):
-
     def __str__(self):
         """Use the class variable template"""
         string_section = '   TOTALES                                                                           '
@@ -304,10 +314,10 @@ class TotalsRow(list):
 
 class FormattedList(list):
     """List containing all cities traveled chronologically in a given Duty Day"""
+
     def __str__(self):
         formatted = '/'.join(self)
         if formatted[0] == '/':
             return formatted[1:]
         else:
             return formatted
-

@@ -170,6 +170,7 @@ class DutyDay(object):
 
     def __init__(self):
         self.events = []
+        self.credits_dict = {}
 
     @property
     def begin(self):
@@ -198,34 +199,35 @@ class DutyDay(object):
 
     @property
     def block(self):
-        block, dh, dur = self.compute_basic_credits()
+        block, dh, dur = self.compute_credits()
         return block
 
     @property
     def dh(self):
-        block, dh, dur = self.compute_basic_credits()
+        block, dh, dur = self.compute_credits()
         return dh
 
     @property
     def origin(self):
         return self.events[0].origin
 
-    def compute_credits(self):
+    def compute_credits(self, creditator=None):
         """
         1. Calculate dh and block time
         2. Calulate all turnarond times
         """
+        # TODO : Probably having two methods, one for basic credits and one for creditator credits is not a bad idea
         total_block = Duration(0)
         total_dh = Duration(0)
         for event in self.events:
-            credits = event.compute_credits()
-            total_block += credits['block']
-            total_dh += credits['dh']
-        credits['daily'] = self.duration
-        return credits
-
-    def calculate_credits(self, creditator):
-        return creditator.to_credit_row(self)
+            self.credits_dict = event.compute_credits()
+            total_block += self.credits_dict['block']
+            total_dh += self.credits_dict['dh']
+        self.credits_dict['daily'] = self.duration
+        self.credits_dict['total'] = total_block + total_dh
+        if creditator:
+            creditator.to_credits_dict(self)
+        return self.credits_dict
 
     def append(self, current_duty):
         """Add a duty, one by one  to this DutyDay"""
@@ -354,7 +356,6 @@ class Trip(object):
         for duty_day, rest in zip(self.duty_days, self.rests):
             rest = repr(rest)
             credits_dict = duty_day.compute_credits()
-            credits_dict['total'] = credits_dict['block'] + credits_dict['dh']
             body = body + body_template.format(duty_day=duty_day,
                                                destination=duty_day.events[-1].destination,
                                                rest=rest,
@@ -362,7 +363,6 @@ class Trip(object):
         else:
             duty_day = self.duty_days[-1]
             credits_dict = duty_day.compute_credits()
-            credits_dict['total'] = credits_dict['block'] + credits_dict['dh']
             body = body + body_template.format(duty_day=duty_day,
                                                destination='    ',
                                                rest='    ',

@@ -91,9 +91,11 @@ class Menu:
 
     def credits(self):
         creditator = Creditator('SOB', 'SO01', self.line.month)
-        for element in self.line:
-            print(element)
-        #print(creditator.header)
+        print(creditator.header)
+        for element in self.line.duties:
+            if isinstance(element, Trip):
+                for duty_day in element.duty_days:
+                    print(duty_day.compute_credits(creditator))
         #credit_table = self.line.calculate_credits(creditator)
         #print(credit_table)
         #print(credit_table.calculate_totals())
