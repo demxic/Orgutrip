@@ -1,4 +1,6 @@
 from datetime import timedelta
+
+from model.creditator import CreditsDict
 from model.timeClasses import Duration
 
 
@@ -170,7 +172,7 @@ class DutyDay(object):
 
     def __init__(self):
         self.events = []
-        self.credits_dict = {}
+        self.credits_dict = CreditsDict()
 
     @property
     def begin(self):
@@ -220,7 +222,7 @@ class DutyDay(object):
         total_block = Duration(0)
         total_dh = Duration(0)
         for event in self.events:
-            self.credits_dict = event.compute_credits()
+            self.credits_dict.update(**event.compute_credits())
             total_block += self.credits_dict['block']
             total_dh += self.credits_dict['dh']
         self.credits_dict['daily'] = self.duration

@@ -7,6 +7,11 @@ Created on 23/06/2016
 import numpy as np
 from model.timeClasses import Duration
 
+string_section_template = "{day: >2} {routing!s:20s} {event_names!s:25s} {duty_type:18s} {report:%H:%M} " \
+                              "{release:%H:%M}    "
+numeric_section_template = " {daily:3} {block:3} {dh:3} {night_time:3} {xblock:3} " \
+                               "{xduty_time:3} {maxirre:3} {pending_rest:3} {xturn:3}"
+
 # TODO : Move all this constants into a configuration file, associated to method set_rules
 
 TRANSOCEANIC = ['MAD', 'CDG', 'MXP', 'FCO', 'LHR', 'AMS', 'SVO', 'BCN', 'MUC', 'FRA', 'NRT', 'ICN', 'PVG', 'PEK']
@@ -321,3 +326,12 @@ class FormattedList(list):
             return formatted[1:]
         else:
             return formatted
+
+
+class CreditsDict(dict):
+    """I need to add str representation and return a part of key-values as a list"""
+    def __str__(self):
+        """Use the class variable template"""
+        st_section = string_section_template.format(**self)
+        nu_section = numeric_section_template.format(**self)
+        return st_section + nu_section
