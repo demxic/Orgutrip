@@ -35,7 +35,7 @@ class Itinerary(object):
         return template.format(self)
 
 
-class Marker(object):
+class Marker(Itinerary):
     """
     Represents  Vacations, GDO's, time-off, etc.
     Markers don't account for duty or block time in a given month
@@ -54,11 +54,6 @@ class Marker(object):
     @property
     def end(self):
         return self.actual_itinerary.end if self.actual_itinerary else self.published_itinerary.end
-
-    @property
-    def duration(self):
-        """How long is the Marker"""
-        return Duration(self.end - self.begin)
 
     def compute_credits(self, creditator = None):
         return None
@@ -222,11 +217,13 @@ class DutyDay(object):
         total_block = Duration(0)
         total_dh = Duration(0)
         for event in self.events:
-            self.credits_dict.update(**event.compute_credits())
-            total_block += self.credits_dict['block']
-            total_dh += self.credits_dict['dh']
-        self.credits_dict['daily'] = self.duration
-        self.credits_dict['total'] = total_block + total_dh
+            credits_dict = event.compute_credits()
+            total_block += credits_dict['block']
+            total_dh += credits_dict['dh']
+        self.credits_dict.update({'daily': self.duration,
+                           'total':total_block + total_dh,
+                           'block': total_block,
+                           'dh': total_dh})
         if creditator:
             creditator.to_credits_dict(self)
         return self.credits_dict
@@ -274,6 +271,7 @@ class Trip(object):
         self.number = number
         self.duty_days = []
         self.dated = dated
+        self.credits_dict = CreditsDict()
 
     @property
     def report(self):
@@ -293,17 +291,33 @@ class Trip(object):
         """Returns a list of all layover stations """
         return [duty_day.events[-1].destination for duty_day in self.duty_days]
 
-    def compute_basic_credits(self):
+    # def compute_basic_credits(self):
+    #     total_block = Duration(0)
+    #     total_dh = Duration(0)
+    #     total_daily = Duration(0)
+    #     for duty_day in self.duty_days:
+    #         credits_dict = duty_day.compute_credits()
+    #         total_block += credits_dict['block']
+    #         total_dh += credits_dict['dh']
+    #         total_daily += credits_dict['daily']
+    #     tafb = Duration(self.release - self.report)
+    #     return total_block + total_dh, total_block, total_dh, tafb
+
+    def compute_credits(self, creditator=None):
         total_block = Duration(0)
         total_dh = Duration(0)
-        total_daily = Duration(0)
         for duty_day in self.duty_days:
             credits_dict = duty_day.compute_credits()
             total_block += credits_dict['block']
             total_dh += credits_dict['dh']
-            total_daily += credits_dict['daily']
         tafb = Duration(self.release - self.report)
-        return total_block + total_dh, total_block, total_dh, tafb
+        self.credits_dict.update({'block': total_block,
+                                  'dh': total_dh,
+                                  'total': total_block+total_dh,
+                                  'tafb': tafb})
+        if creditator:
+            pass
+        return self.credits_dict
 
     def calculate_credits(self, creditator):
         '''Returns a credit holder '''
@@ -350,27 +364,24 @@ class Trip(object):
 
         footer_template = """
 
-          TOTALS     {tl:2}TL     {bl:2}BL     {cr:2}CR           {tafb:2}TAFB"""
+          TOTALS     {total:2}TL     {block:2}BL     {dh:2}CR           {tafb:2}TAFB"""
 
         header = header_template.format(self)
         body = ''
 
         for duty_day, rest in zip(self.duty_days, self.rests):
             rest = repr(rest)
-            credits_dict = duty_day.compute_credits()
             body = body + body_template.format(duty_day=duty_day,
                                                destination=duty_day.events[-1].destination,
                                                rest=rest,
-                                               **credits_dict)
+                                               **duty_day.compute_credits())
         else:
             duty_day = self.duty_days[-1]
-            credits_dict = duty_day.compute_credits()
             body = body + body_template.format(duty_day=duty_day,
                                                destination='    ',
                                                rest='    ',
-                                               **credits_dict)
-        total, block, dh, tafb = self.compute_basic_credits()
-        footer = footer_template.format(tl=total, bl=block, cr=dh, tafb=tafb)
+                                               **duty_day.compute_credits())
+        footer = footer_template.format(**self.compute_credits())
         return header + body + footer
 
 

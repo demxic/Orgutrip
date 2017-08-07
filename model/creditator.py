@@ -8,9 +8,9 @@ import numpy as np
 from model.timeClasses import Duration
 
 string_section_template = "{day: >2} {routing!s:20s} {event_names!s:25s} {duty_type:18s} {report:%H:%M} " \
-                              "{release:%H:%M}    "
+                          "{release:%H:%M}    "
 numeric_section_template = " {daily:3} {block:3} {dh:3} {night_time:3} {xblock:3} " \
-                               "{xduty_time:3} {maxirre:3} {pending_rest:3} {xturn:3}"
+                           "{xduty_time:3} {maxirre:3} {pending_rest:3} {xturn:3}"
 
 # TODO : Move all this constants into a configuration file, associated to method set_rules
 
@@ -101,7 +101,7 @@ class Creditator(object):
         for event in duty_day.events:
             # TODO : I don´t like this, should think of using isinstance or another alternative
             if event.is_flight:
-                duty_day.credits_dict['night_time'] += Creditator.calculate_night_time(event.begin, event.end)
+                duty_day.credits_dict['night_time'] += Creditator.calculate_night_time(event)
             duty_day.credits_dict['event_names'].append(event.name)
             duty_day.credits_dict['routing'].append(event.destination)
 
@@ -126,15 +126,22 @@ class Creditator(object):
             # If there is a maxirre, normal xduty time ends where maxirre starts
             if duty_day.credits_dict['maxirre'] > Duration(0):
                 duty_day.credits_dict['xduty_time'] = Duration(6 * 60)
+        elif duty_day.credits_dict['duty_type'] == 'long haul':
+            duty_day.credits_dict['xblock'] = duty_day.credits_dict['block'] - JORNADA_ORDINARIA_VUELO_LARGO_ALCANCE
+            duty_day.credits_dict['xduty_time'] = duty_day.credits_dict['daily'] - JORNADA_ORDINARIA_SERVICIO_LARGO_ALCANCE
+            duty_day.credits_dict['maxirre'] = duty_day.credits_dict['daily'] - MAXIMA_ASIGNABLE_SERVICIO_LARGO_ALCANCE
+            # If there is a maxirre, normal xduty time ends where maxirre starts
+            if duty_day.credits_dict['maxirre'] > Duration(0):
+                duty_day.credits_dict['xduty_time'] = Duration(5 * 60)
 
     @staticmethod
-    def calculate_night_time(begin, end):
+    def calculate_night_time(event):
         """
         Returns the nighttime flown in a given event, value is returned in seconds
         """
 
-        BEGIN = begin.hour * 60 + begin.minute
-        END = end.hour * 60 + end.minute
+        BEGIN = event.begin.hour * 60 + event.begin.minute
+        END = event.end.hour * 60 + event.end.minute
         NIGHTTIME_BEGIN = 22 * 60
         NIGHTTIME_END = 5 * 60
         MIDNIGHT = 24 * 60
@@ -179,14 +186,16 @@ class Creditator(object):
             duty_day.credits_dict['duty_type'] = 'transoceanic'
             if (duty_day.credits_dict['total']) > MINIMUM_BLOCK or duty_day.credits_dict['daily'] > MINIMUM_DUTY:
                 duty_day.credits_dict['duty_type'] = 'special trans'
-        # TODO : Implement the Long Haul definition
         elif len(duty_day.events) <= 2:
             for event in duty_day.events:
-                if event.duration > Duration(4*60 + 30):
-                # First two mandatory clauses met
-                    if duty_day.credits_dict['block'] > Duration(10*60) or duty_day.credits_dict['daily'] > Duration(12*60):
+                if event.duration > Duration(4 * 60 + 30):
+                    if duty_day.credits_dict['block'] > Duration(10 * 60) or \
+                                    duty_day.credits_dict['daily'] > Duration(12 * 60) or \
+                            (duty_day.credits_dict['daily'] > Duration(9 * 60 + 30) and
+                                     Creditator.overlapping([duty_day.report, duty_day.release],
+                                                            [59, 4 * 60 + 59]) != 0):
                         duty_day.credits_dict['duty_type'] = 'long haul'
-                        #TODO : Add the third condition (MISSING) *************
+                    break
 
     def new_credit_table(self):
         return CreditTable()
@@ -336,6 +345,7 @@ class FormattedList(list):
 
 class CreditsDict(dict):
     """I need to add str representation and return a part of key-values as a list"""
+
     def __str__(self):
         """Use the class variable template"""
         st_section = string_section_template.format(**self)
