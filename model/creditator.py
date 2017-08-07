@@ -151,6 +151,7 @@ class Creditator(object):
         return Duration(total)
 
     @staticmethod
+    # TODO : Probably this should be integrated into all ScheduleClasses
     def overlapping(a, b):
         """
         returns the total overlapping time of periods a and b
@@ -179,8 +180,13 @@ class Creditator(object):
             if (duty_day.credits_dict['total']) > MINIMUM_BLOCK or duty_day.credits_dict['daily'] > MINIMUM_DUTY:
                 duty_day.credits_dict['duty_type'] = 'special trans'
         # TODO : Implement the Long Haul definition
-        if len(duty_day.credits_dict['event_names']) <= 2:
-            pass
+        elif len(duty_day.events) <= 2:
+            for event in duty_day.events:
+                if event.duration > Duration(4*60 + 30):
+                # First two mandatory clauses met
+                    if duty_day.credits_dict['block'] > Duration(10*60) or duty_day.credits_dict['daily'] > Duration(12*60):
+                        duty_day.credits_dict['duty_type'] = 'long haul'
+                        #TODO : Add the third condition (MISSING) *************
 
     def new_credit_table(self):
         return CreditTable()
