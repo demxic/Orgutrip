@@ -16,6 +16,7 @@ class Itinerary(object):
         """
         self.begin = begin
         self.end = end
+        self.credits_dict = None
 
     @classmethod
     def from_timedelta(cls, begin, a_timedelta):
@@ -27,7 +28,7 @@ class Itinerary(object):
     def duration(self):
         return Duration(self.end - self.begin)
 
-    def compute_credits(self, creditator):
+    def compute_credits(self, creditator=None):
         return None
 
     def __str__(self):
@@ -46,6 +47,7 @@ class Marker(Itinerary):
         self.published_itinerary = published_itinerary
         self.actual_itinerary = actual_itinerary
         self.is_flight = False
+        self.credits_dict = None
 
     @property
     def begin(self):
@@ -54,9 +56,6 @@ class Marker(Itinerary):
     @property
     def end(self):
         return self.actual_itinerary.end if self.actual_itinerary else self.published_itinerary.end
-
-    def compute_credits(self, creditator = None):
-        return None
 
     def __str__(self):
         template = "{0.name} {0.begin:%d%b} BEGIN {0.begin:%H%M} END {0.end:%H%M}"
@@ -67,11 +66,14 @@ class GroundDuty(Marker):
     """
     Represents  training, reserve or special assignments.
     """
-    def __init__(self, name, published_itinerary=None, actual_itinerary=None, origin='MEX', destination='MEX', equipment=None):
+
+    def __init__(self, name, published_itinerary=None, actual_itinerary=None, origin='MEX', destination='MEX',
+                 equipment=None):
         super().__init__(name, published_itinerary, actual_itinerary)
         self.origin = origin
         self.destination = destination
         self.equipment = equipment
+        self.credits_dict = CreditsDict()
 
     @property
     def report(self):
@@ -82,7 +84,8 @@ class GroundDuty(Marker):
         return self.end
 
     def compute_credits(self, creditator=None):
-        return {'block': self.block, 'dh': self.dh}
+        self.credits_dict.update({'block': self.block, 'dh': self.dh})
+        return self.credits_dict
 
     @property
     def block(self):
@@ -92,7 +95,7 @@ class GroundDuty(Marker):
     def dh(self):
         return Duration(0)
 
-    def as_robust_string(self, rpt=4*'', rls=4*'', turn=4*''):
+    def as_robust_string(self, rpt=4 * '', rls=4 * '', turn=4 * ''):
         """Prints a Ground Duty following this heather template
         DATE  RPT  FLIGHT DEPARTS  ARRIVES  RLS  BLK        TURN       EQ
         05JUN 0900 E6     MEX 0900 MEX 1500 1500 0000
@@ -112,8 +115,7 @@ class GroundDuty(Marker):
         template = """
         {0.begin:%d%b} {rpt:4s} {0.name:<6s} {0.origin} {0.begin:%H%M} {0.destination} {0.end:%H%M} {rls:4s} {block:0}       {turn:4s}       {eq}"""
         eq = self.equipment if self.equipment else 3 * ''
-        block, _ = self.compute_credits()
-        return template.format(self, rpt=rpt, rls=rls, turn=turn, eq=eq, **self.compute_credits())
+        return template.format(self, rpt=rpt, rls=rls, turn=turn, eq=eq, block=self.block)
 
 
 class Flight(GroundDuty):
@@ -155,7 +157,7 @@ class Flight(GroundDuty):
         {0.begin:%d%b} {0.name:>6s} {0.origin} {0.begin:%H%M} {0.destination} {0.end:%H%M}\
         {0.duration:2}        {eq}
         """
-        eq = self.equipment if self.equipment else 3*''
+        eq = self.equipment if self.equipment else 3 * ''
         return template.format(self, eq=eq)
 
 
@@ -217,16 +219,16 @@ class DutyDay(object):
         total_block = Duration(0)
         total_dh = Duration(0)
         for event in self.events:
-            credits_dict = event.compute_credits()
-            total_block += credits_dict['block']
-            total_dh += credits_dict['dh']
+            event.compute_credits()
+            total_block += event.credits_dict['block']
+            total_dh += event.credits_dict['dh']
         self.credits_dict.update({'daily': self.duration,
-                           'total':total_block + total_dh,
-                           'block': total_block,
-                           'dh': total_dh})
+                                  'total': total_block + total_dh,
+                                  'block': total_block,
+                                  'dh': total_dh})
         if creditator:
-            creditator.to_credits_dict(self)
-        return self.credits_dict
+            creditator.credits_dict_from_duty_day(self)
+        return [self.credits_dict]
 
     def append(self, current_duty):
         """Add a duty, one by one  to this DutyDay"""
@@ -251,12 +253,12 @@ class DutyDay(object):
             for event, turn in zip(self.events, self.turns):
                 turn = format(turn, '0')
                 body = body + event.as_robust_string(rpt, rls, turn)
-                rpt = 4*''
+                rpt = 4 * ''
             rls = '{:%H%M}'.format(self.release)
             body = body + self.events[-1].as_robust_string(rls=rls)
         else:
             rls = '{:%H%M}'.format(self.release)
-            body = self.events[-1].as_robust_string(rpt, rls, 4*'')
+            body = self.events[-1].as_robust_string(rpt, rls, 4 * '')
 
         return body
 
@@ -284,54 +286,33 @@ class Trip(object):
     @property
     def rests(self):
         """Returns a list of all calculated rests between each duty_day"""
-        return [Duration(j.report-i.release) for i, j in zip(self.duty_days[:-1], self.duty_days[1:])]
+        return [Duration(j.report - i.release) for i, j in zip(self.duty_days[:-1], self.duty_days[1:])]
 
     @property
     def layovers(self):
         """Returns a list of all layover stations """
         return [duty_day.events[-1].destination for duty_day in self.duty_days]
 
-    # def compute_basic_credits(self):
-    #     total_block = Duration(0)
-    #     total_dh = Duration(0)
-    #     total_daily = Duration(0)
-    #     for duty_day in self.duty_days:
-    #         credits_dict = duty_day.compute_credits()
-    #         total_block += credits_dict['block']
-    #         total_dh += credits_dict['dh']
-    #         total_daily += credits_dict['daily']
-    #     tafb = Duration(self.release - self.report)
-    #     return total_block + total_dh, total_block, total_dh, tafb
-
     def compute_credits(self, creditator=None):
+        credits_dictionaries = []
         total_block = Duration(0)
         total_dh = Duration(0)
+        total_daily = Duration(0)
         for duty_day in self.duty_days:
-            credits_dict = duty_day.compute_credits()
-            total_block += credits_dict['block']
-            total_dh += credits_dict['dh']
+            credits_dictionaries.extend(duty_day.compute_credits())
+            total_block += duty_day.credits_dict['block']
+            total_dh += duty_day.credits_dict['dh']
+            total_daily += duty_day.credits_dict['daily']
         tafb = Duration(self.release - self.report)
         self.credits_dict.update({'block': total_block,
                                   'dh': total_dh,
-                                  'total': total_block+total_dh,
-                                  'tafb': tafb})
+                                  'total': total_block + total_dh,
+                                  'tafb': tafb,
+                                  'daily': total_daily})
         if creditator:
-            pass
-        return self.credits_dict
+            creditator.credits_dict_from_trip(self)
 
-    def calculate_credits(self, creditator):
-        '''Returns a credit holder '''
-        credit_table = creditator.new_credit_table()
-        for duty_day in self.duty_days:
-            credit_row = duty_day.calculate_credits(creditator)
-            if duty_day.begin.month == creditator.month_scope:
-                credit_table.append(credit_row)
-        for index, rest in enumerate(self.rests):
-            pending_rest = creditator.calculate_pending_rest(rest)
-            if pending_rest == 0:
-                credit_table[index].pending_rest = pending_rest
-
-        return credit_table
+        return credits_dictionaries
 
     def append(self, duty_day):
         """Simply append a duty_day"""
@@ -354,6 +335,7 @@ class Trip(object):
         self.duty_days[key] = value
 
     def __str__(self):
+        self.compute_credits()
         header_template = """
         # {0.number}                                                  CHECK IN AT {0.report:%H:%M}
         {0.report:%d%b%Y}
@@ -374,14 +356,14 @@ class Trip(object):
             body = body + body_template.format(duty_day=duty_day,
                                                destination=duty_day.events[-1].destination,
                                                rest=rest,
-                                               **duty_day.compute_credits())
+                                               **duty_day.credits_dict)
         else:
             duty_day = self.duty_days[-1]
             body = body + body_template.format(duty_day=duty_day,
                                                destination='    ',
                                                rest='    ',
-                                               **duty_day.compute_credits())
-        footer = footer_template.format(**self.compute_credits())
+                                               **duty_day.credits_dict)
+        footer = footer_template.format(**self.credits_dict)
         return header + body + footer
 
 
@@ -393,18 +375,32 @@ class Line(object):
         self.month = month
         self.year = year
         self.crewMember = crew_member
-        self.creditator = None
+        self.credits_dict = CreditsDict()
 
     def append(self, duty):
         self.duties.append(duty)
 
-    def calculate_credits(self, creditator):
-        credit_table = creditator.new_credit_table()
+    def compute_credits(self, creditator=None):
+        total_block = Duration(0)
+        total_dh = Duration(0)
+        total_daily = Duration(0)
+        credits_dictionaries = []
         for duty in self.duties:
-            credit_holder = duty.calculate_credits(creditator)
-            if credit_holder:
-                credit_table.append(credit_holder)
-        return credit_table
+            cr = duty.compute_credits()
+            if cr:
+                total_block += duty.credits_dict['block']
+                total_dh += duty.credits_dict['dh']
+                total_daily += duty.credits_dict['daily']
+                self.credits_dict.update({'block': total_block,
+                                          'dh': total_dh,
+                                          'total': total_block + total_dh,
+                                          'daily': total_daily})
+                credits_dictionaries.extend(cr)
+
+        if creditator:
+            creditator.credits_dict_from_line(self)
+
+        return credits_dictionaries
 
     def return_duty(self, dutyId):
         """Return the corresponding duty for the given dutyId"""

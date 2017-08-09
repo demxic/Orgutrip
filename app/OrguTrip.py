@@ -2,6 +2,7 @@ import sqlite3
 import sys
 from datetime import datetime, timedelta
 
+import model.creditator as creditator
 from model.creditator import Creditator
 from model.crewmember import CrewMember
 from model.elements import DateTracker
@@ -10,11 +11,11 @@ from rosterReaders.lineCreator import Liner
 from rosterReaders.txtroster import RosterReader
 
 # Roles de la Cuija
-rolFile = "C:\\Users\\Xico\\Google Drive\\Sobrecargo\\roles\\Rol-2017-07-P.txt"
+#rolFile = "C:\\Users\\Xico\\Google Drive\\Sobrecargo\\roles\\Rol-2017-07-P.txt"
 # summaryFile = "C:\\Users\\Xico\\Google Drive\\Sobrecargo\\Resumen de horas\\Rol-2017-02-R.txt"
 
 #Mis roles
-#rolFile = "C:\\Users\\Xico\\Google Drive\\Sobrecargo\\roles\\201708.txt"
+rolFile = "C:\\Users\\Xico\\Google Drive\\Sobrecargo\\roles\\201707.txt"
 summaryFile = "C:\\Users\\Xico\\Google Drive\\Sobrecargo\\Resumen de horas\\2017\\res201706.txt"
 
 
@@ -90,20 +91,11 @@ class Menu:
         print(self.line)
 
     def credits(self):
-        creditator = Creditator('SOB', 'SO01', self.line.month)
-        print(creditator.header)
-        for element in self.line.duties:
-            if isinstance(element, Trip):
-                for duty_day in element.duty_days:
-                    ddc = duty_day.compute_credits(creditator)
-                    print(ddc)
-        #credit_table = self.line.calculate_credits(creditator)
-        #print(credit_table)
-        #print(credit_table.calculate_totals())
-        #print(credit_table.payable())
-        # print()
-        # print(40 * "*")
-        # print()
+        cr = Creditator('SOB', 'SO01', self.line.month)
+        print(creditator.line_credits_header)
+        for row in self.line.compute_credits(cr):
+            print(row)
+        print(self.line.credits_dict)
         # compensations = compensation_dict(691.02*30)
         # paycheck = PayCheck(compensations, credit_table.totals())
         # paycheck.calculate()

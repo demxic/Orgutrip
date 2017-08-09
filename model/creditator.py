@@ -3,14 +3,8 @@ Created on 23/06/2016
 
 @author: Xico
 """
-
 import numpy as np
 from model.timeClasses import Duration
-
-string_section_template = "{day: >2} {routing!s:20s} {event_names!s:25s} {duty_type:18s} {report:%H:%M} " \
-                          "{release:%H:%M}    "
-numeric_section_template = " {daily:3} {block:3} {dh:3} {night_time:3} {xblock:3} " \
-                           "{xduty_time:3} {maxirre:3} {pending_rest:3} {xturn:3}"
 
 # TODO : Move all this constants into a configuration file, associated to method set_rules
 
@@ -54,6 +48,23 @@ GARANTIA_HORAS_DE_VUELO_MENSUAL = Duration(80 * 60)
 RECESO_CONTINENTAL = Duration(12 * 60)
 RECESO_TRANS = Duration(48 * 60)
 
+# Templates
+string_part_template = "{day: >2} {routing!s:20s} {event_names!s:25s} {duty_type:18s} {report:%H:%M} " \
+                              "{release:%H:%M}    "
+num_part_template = " {daily:3} {block:3} {dh:3} {night:3} {xblock:3} " \
+                               "{xduty:3} {maxirre:3} {xturn:3} "
+duty_day_credits_template = string_part_template + num_part_template
+trip_credits_template = duty_day_credits_template + '{pending_rest:3} '
+
+# TODO : Implement pending credits and template for Line
+line_credits_template = 50 * ' ' + "TOTALS" + 27*' ' + num_part_template
+
+# Headers
+duty_day_credits_header = 'D  RUTA                 SERVICIOS              TIPO DE JORNADA       FIMA  CIERRE    ' \
+                          'DUTY  BLK   DH    NOCT  XBLK  XDTY  IRRE  PLAT  '
+trip_credits_header = duty_day_credits_header + 'RECE  '
+line_credits_header = trip_credits_header + 'DESC 7DAY FERI'
+
 
 def get_rules_for(position, group):
     pass
@@ -69,19 +80,20 @@ class Creditator(object):
         self.rules = None
         self.set_rules()
         self.month_scope = month_scope
-        self.header = 'D  RUTA                 SERVICIOS              TIPO DE JORNADA       FIMA  CIERRE    ' \
-                      'DUTY  BLK   DH    NOCT  XBLK  XDTY  IRRE  RECE  PLAT'
 
     def set_rules(self):
         pass
 
-    def calculate_pending_rest(self, rest):
+    @staticmethod
+    def calculate_pending_rest(rest):
+        # TODO : Implement pending_rest for all other duty_day types
         pending_rest = RECESO_CONTINENTAL - rest
         return pending_rest
 
-    def to_credits_dict(self, duty_day):
+    @staticmethod
+    def credits_dict_from_duty_day(duty_day):
         """
-        Builds and returns a CreditRow from a given DutyDay
+        Returns
         """
         # 1. Init our credits_dict
         duty_day.credits_dict.update({'day': duty_day.begin.day,
@@ -90,8 +102,8 @@ class Creditator(object):
                                       'release': duty_day.release,
                                       'duty_type': 'regular',
                                       'event_names': FormattedList(['']),
-                                      'night_time': Duration(0),
-                                      'xduty_time': Duration(0),
+                                      'night': Duration(0),
+                                      'xduty': Duration(0),
                                       'xblock': Duration(0),
                                       'maxirre': Duration(0),
                                       'pending_rest': Duration(0),
@@ -101,7 +113,7 @@ class Creditator(object):
         for event in duty_day.events:
             # TODO : I don´t like this, should think of using isinstance or another alternative
             if event.is_flight:
-                duty_day.credits_dict['night_time'] += Creditator.calculate_night_time(event)
+                duty_day.credits_dict['night'] += Creditator.calculate_night_time(event)
             duty_day.credits_dict['event_names'].append(event.name)
             duty_day.credits_dict['routing'].append(event.destination)
 
@@ -110,29 +122,96 @@ class Creditator(object):
 
         if duty_day.credits_dict['duty_type'] == 'regular':
             duty_day.credits_dict['xblock'] = duty_day.credits_dict['block'] - JORNADA_ORDINARIA_VUELO_REGULAR
-            duty_day.credits_dict['xduty_time'] = duty_day.credits_dict['daily'] - JORNADA_ORDINARIA_SERVICIO_REGULAR
+            duty_day.credits_dict['xduty'] = duty_day.credits_dict['daily'] - JORNADA_ORDINARIA_SERVICIO_REGULAR
             duty_day.credits_dict['maxirre'] = duty_day.credits_dict['daily'] - MAXIMA_IRREBASABLE_SERVICIO_REGULAR
         elif duty_day.credits_dict['duty_type'] == 'transoceanic':
             duty_day.credits_dict['xblock'] = duty_day.credits_dict['block'] - JORNADA_ORDINARIA_VUELO_TRAN
-            duty_day.credits_dict['xduty_time'] = duty_day.credits_dict['daily'] - JORNADA_ORDINARIA_SERVICIO_TRAN
+            duty_day.credits_dict['xduty'] = duty_day.credits_dict['daily'] - JORNADA_ORDINARIA_SERVICIO_TRAN
             duty_day.credits_dict['maxirre'] = duty_day.credits_dict['daily'] - MAXIMA_IRREBASABLE_SERVICIO_TRAN
-            # If there is a maxirre, normal xduty time ends where maxirre starts
-            if duty_day.credits_dict['maxirre'] > Duration(0):
-                duty_day.credits_dict['xduty_time'] = Duration(5 * 60)
         elif duty_day.credits_dict['duty_type'] == 'special trans':
             duty_day.credits_dict['xblock'] = duty_day.credits_dict['block'] - JORNADA_ORDINARIA_VUELO_TRANSP
-            duty_day.credits_dict['xduty_time'] = duty_day.credits_dict['daily'] - JORNADA_ORDINARIA_SERVICIO_TRANSP
+            duty_day.credits_dict['xduty'] = duty_day.credits_dict['daily'] - JORNADA_ORDINARIA_SERVICIO_TRANSP
             duty_day.credits_dict['maxirre'] = duty_day.credits_dict['daily'] - MAXIMA_IRREBASABLE_SERVICIO_TRANSP
             # If there is a maxirre, normal xduty time ends where maxirre starts
-            if duty_day.credits_dict['maxirre'] > Duration(0):
-                duty_day.credits_dict['xduty_time'] = Duration(6 * 60)
         elif duty_day.credits_dict['duty_type'] == 'long haul':
             duty_day.credits_dict['xblock'] = duty_day.credits_dict['block'] - JORNADA_ORDINARIA_VUELO_LARGO_ALCANCE
-            duty_day.credits_dict['xduty_time'] = duty_day.credits_dict['daily'] - JORNADA_ORDINARIA_SERVICIO_LARGO_ALCANCE
+            duty_day.credits_dict['xduty'] = duty_day.credits_dict[
+                                                 'daily'] - JORNADA_ORDINARIA_SERVICIO_LARGO_ALCANCE
             duty_day.credits_dict['maxirre'] = duty_day.credits_dict['daily'] - MAXIMA_ASIGNABLE_SERVICIO_LARGO_ALCANCE
             # If there is a maxirre, normal xduty time ends where maxirre starts
             if duty_day.credits_dict['maxirre'] > Duration(0):
-                duty_day.credits_dict['xduty_time'] = Duration(5 * 60)
+                duty_day.credits_dict['xduty'] = Duration(5 * 60)
+
+        # 4. If there is a maxirre, normal xduty time ends where maxirre starts
+        if duty_day.credits_dict['maxirre'] > Duration(0):
+            duty_day.credits_dict['xduty'] = Duration(5 * 60)
+
+        # 5. Assign the needed template to print credits
+        duty_day.credits_dict['header'] = duty_day_credits_header
+        duty_day.credits_dict['template'] = duty_day_credits_template
+
+    def credits_dict_from_trip(self, trip):
+        """Returns only one credit_dict with all credits for given trip"""
+        # 1. Calculate pending_rest between each duty day
+        for rest, duty_day in zip(trip.rests, trip.duty_days):
+            if rest < Duration(12 * 60):
+                duty_day.credits_dict['pending_rest'] = Creditator.calculate_pending_rest(rest)
+            else:
+                duty_day.credits_dict['pending_rest'] = Duration(0)
+
+        # 2 Add all credits to find totals
+        trip.credits_dict['night'] = Duration(0)
+        trip.credits_dict['xblock'] = Duration(0)
+        trip.credits_dict['xduty'] = Duration(0)
+        trip.credits_dict['maxirre'] = Duration(0)
+        trip.credits_dict['pending_rest'] = Duration(0)
+        trip.credits_dict['xturn'] = Duration(0)
+        for duty_day in trip.duty_days:
+            duty_day.compute_credits(self)
+            trip.credits_dict['night'] += duty_day.credits_dict['night']
+            trip.credits_dict['xblock'] += duty_day.credits_dict['xblock']
+            trip.credits_dict['xduty'] += duty_day.credits_dict['xduty']
+            trip.credits_dict['maxirre'] += duty_day.credits_dict['maxirre']
+            trip.credits_dict['pending_rest'] += duty_day.credits_dict['pending_rest']
+            trip.credits_dict['xturn'] += duty_day.credits_dict['xturn']
+
+        # 3 Assign the needed template to print credits
+        trip.credits_dict['header'] = trip_credits_header
+        trip.credits_dict['template'] = trip_credits_template
+
+    def credits_dict_from_line(self, line):
+        """Returns only one credit_dict with all credits for given line"""
+
+        # 1. Calculate pending credits for line DESC 7DAT HDAY
+        line.credits_dict.update({'day': '',
+                                  'routing': 'TOTALS',
+                                  'report': '',
+                                  'release': '',
+                                  'duty_type': '',
+                                  'event_names': '',
+                                  'night': Duration(0),
+                                  'xduty': Duration(0),
+                                  'xblock': Duration(0),
+                                  'maxirre': Duration(0),
+                                  'pending_rest': Duration(0),
+                                  'xturn': Duration(0),
+                                  'daily': Duration(0)})
+
+        # 2 Add all credits to find totals
+        for duty in line.duties:
+            duty.compute_credits(self)
+            if duty.credits_dict:
+                line.credits_dict['night'] += duty.credits_dict['night']
+                line.credits_dict['xblock'] += duty.credits_dict['xblock']
+                line.credits_dict['xduty'] += duty.credits_dict['xduty']
+                line.credits_dict['maxirre'] += duty.credits_dict['maxirre']
+                line.credits_dict['pending_rest'] += duty.credits_dict['pending_rest']
+                line.credits_dict['xturn'] += duty.credits_dict['xturn']
+                line.credits_dict['daily'] += duty.credits_dict['daily']
+
+        # 3 Assign the needed template to print credits
+        line.credits_dict['header'] = line_credits_header
+        line.credits_dict['template'] = line_credits_template
 
     @staticmethod
     def calculate_night_time(event):
@@ -190,11 +269,13 @@ class Creditator(object):
             for event in duty_day.events:
                 if event.duration > Duration(4 * 60 + 30):
                     if duty_day.credits_dict['block'] > Duration(10 * 60) or \
-                                    duty_day.credits_dict['daily'] > Duration(12 * 60) or \
-                            (duty_day.credits_dict['daily'] > Duration(9 * 60 + 30) and
-                                     Creditator.overlapping([duty_day.report, duty_day.release],
-                                                            [59, 4 * 60 + 59]) != 0):
+                                    duty_day.credits_dict['daily'] > Duration(12 * 60):
                         duty_day.credits_dict['duty_type'] = 'long haul'
+                        #falta agregar esta condición
+                        #or (duty_day.credits_dict['daily'] > Duration(9 * 60 + 30))
+                        #and Creditator.overlapping([duty_day.report, duty_day.release],
+                        #                                    [59, 4 * 60 + 59]) != 0)
+
                     break
 
     def new_credit_table(self):
@@ -348,6 +429,4 @@ class CreditsDict(dict):
 
     def __str__(self):
         """Use the class variable template"""
-        st_section = string_section_template.format(**self)
-        nu_section = numeric_section_template.format(**self)
-        return st_section + nu_section
+        return self['template'].format(**self)
