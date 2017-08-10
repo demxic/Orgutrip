@@ -52,7 +52,7 @@ RECESO_TRANS = Duration(48 * 60)
 string_part_template = "{day: >2} {routing!s:20s} {event_names!s:25s} {duty_type:18s} {report:%H:%M} " \
                        "{release:%H:%M}    "
 num_part_template = " {daily:3} {block:3} {dh:3} {night:3} {xblock:3} " \
-                    "{xduty:3} {maxirre:3} {xturn:3} "
+                    "{xduty:3} {maxirre:3} {delay:3} {xturn:3} "
 duty_day_credits_template = string_part_template + num_part_template
 trip_credits_template = duty_day_credits_template + '{pending_rest:3} '
 
@@ -61,7 +61,7 @@ line_credits_template = 50 * ' ' + "TOTALS" + 27 * ' ' + num_part_template
 
 # Headers
 duty_day_credits_header = 'D  RUTA                 SERVICIOS              TIPO DE JORNADA       FIMA  CIERRE    ' \
-                          'DUTY  BLK   DH    NOCT  XBLK  XDTY  IRRE  PLAT  '
+                          'DUTY  BLK   DH    NOCT  XBLK  XDTY  IRRE  DLAY  PLAT  '
 trip_credits_header = duty_day_credits_header + 'RECE  '
 line_credits_header = trip_credits_header + 'DESC 7DAY FERI'
 
@@ -110,6 +110,7 @@ class Creditator(object):
                                   'xduty': Duration(0),
                                   'xblock': Duration(0),
                                   'maxirre': Duration(0),
+                                  'delay': duty_day.delay,
                                   'pending_rest': Duration(0),
                                   'xturn': Duration(0)})
 
@@ -170,6 +171,7 @@ class Creditator(object):
         trip._credits['xblock'] = Duration(0)
         trip._credits['xduty'] = Duration(0)
         trip._credits['maxirre'] = Duration(0)
+        trip._credits['delay'] = Duration(0)
         trip._credits['pending_rest'] = Duration(0)
         trip._credits['xturn'] = Duration(0)
         for duty_day in trip.duty_days:
@@ -182,6 +184,7 @@ class Creditator(object):
                 trip._credits['xblock'] += duty_day._credits['xblock']
                 trip._credits['xduty'] += duty_day._credits['xduty']
                 trip._credits['maxirre'] += duty_day._credits['maxirre']
+                trip._credits['delay'] += duty_day._credits['delay']
                 trip._credits['xturn'] += duty_day._credits['xturn']
                 credits_list.append(duty_day._credits)
 
@@ -214,6 +217,7 @@ class Creditator(object):
                               'xduty': Duration(0),
                               'xblock': Duration(0),
                               'maxirre': Duration(0),
+                              'delay': Duration(0),
                               'pending_rest': Duration(0),
                               'xturn': Duration(0)})
 
@@ -230,6 +234,7 @@ class Creditator(object):
                 line._credits['xblock'] += duty._credits['xblock']
                 line._credits['xduty'] += duty._credits['xduty']
                 line._credits['maxirre'] += duty._credits['maxirre']
+                line._credits['delay'] += duty._credits['delay']
                 line._credits['pending_rest'] += duty._credits['pending_rest']
                 line._credits['xturn'] += duty._credits['xturn']
 

@@ -178,6 +178,10 @@ class DutyDay(object):
         return self.events[-1].release
 
     @property
+    def delay(self):
+        return Duration(self.begin - self.report) - Duration(60)
+
+    @property
     def duration(self):
         """How long is the DutyDay"""
         return Duration(self.release - self.report)

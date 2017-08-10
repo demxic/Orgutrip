@@ -147,7 +147,7 @@ class Menu:
         self.line = liner.line
 
     def retrieve_flights_from_database(self):
-        SQL = "SELECT * FROM flights WHERE number = ?"
+        SQL = "SELECT * FROM flights WHERE number = ? AND date = ?"
         conn = sqlite3.connect('C:\\Users\\Xico\\Dropbox\\PyCharmProjects\\Orgutrip\\data\\flights.db')
         c = conn.cursor()
         for duty_day in self.line.return_duty_days():
@@ -158,12 +158,11 @@ class Menu:
                     print("Flight's actual_itinerary itinerary: ", flight.name)
                     print(flight.actual_itinerary)
                     print()
-                    for row in c.execute(SQL, [flight.name]):
+                    for row in c.execute(SQL, [flight.name, flight.begin.date()]):
                         begin = datetime.strptime(row[0]+row[3], "%Y-%m-%d%H%M")
                         duration = timedelta(minutes = int(row[5]))
                         scheduled_itinerary = Itinerary.from_timedelta(begin, duration)
                         print("Flight's scheduled itinerary: ", flight.name)
-                        print()
                     flight.published_itinerary = scheduled_itinerary
                     print(flight.published_itinerary)
             except:
