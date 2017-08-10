@@ -15,7 +15,7 @@ from rosterReaders.txtroster import RosterReader
 # summaryFile = "C:\\Users\\Xico\\Google Drive\\Sobrecargo\\Resumen de horas\\Rol-2017-02-R.txt"
 
 #Mis roles
-rolFile = "C:\\Users\\Xico\\Google Drive\\Sobrecargo\\roles\\201707.txt"
+rolFile = "C:\\Users\\Xico\\Google Drive\\Sobrecargo\\roles\\201706.txt"
 summaryFile = "C:\\Users\\Xico\\Google Drive\\Sobrecargo\\Resumen de horas\\2017\\res201706.txt"
 
 
@@ -95,7 +95,7 @@ class Menu:
         print(creditator.line_credits_header)
         for row in self.line.compute_credits(cr):
             print(row)
-        print(self.line.credits_dict)
+        print(self.line._credits['template'].format(**self.line._credits))
         # compensations = compensation_dict(691.02*30)
         # paycheck = PayCheck(compensations, credit_table.totals())
         # paycheck.calculate()
