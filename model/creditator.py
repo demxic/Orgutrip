@@ -42,7 +42,7 @@ MAXIMA_IRREBASABLE_SERVICIO_TRANSP = Duration(16 * 60)
 # Jornadas mensuales
 JORNADA_ORDINARIA_VUELO_MENSUAL = Duration(65 * 60)
 JORNADA_ORDINARIA_DH_MENSUAL = Duration(3 * 60)
-GARANTIA_HORAS_DE_VUELO_MENSUAL = Duration(80 * 60)
+GARANTIA_HORAS_DE_VUELO_MENSUAL = Duration(15 * 60)
 
 # Otros créditos
 RECESO_CONTINENTAL = Duration(12 * 60)
@@ -127,7 +127,7 @@ class Creditator(object):
         duty_day._credits['total'] = duty_day._credits['block'] + duty_day._credits['dh']
 
         # 3. Classify duty
-        Creditator.credit_row_classifier(duty_day)
+        Creditator.duty_day_classifier(duty_day)
 
         if duty_day._credits['duty_type'] == 'regular':
             duty_day._credits['xblock'] = duty_day._credits['block'] - JORNADA_ORDINARIA_VUELO_REGULAR
@@ -238,7 +238,6 @@ class Creditator(object):
                 line._credits['pending_rest'] += duty._credits['pending_rest']
                 line._credits['xturn'] += duty._credits['xturn']
 
-
         # 3 Assign the needed template to print credits
         line._credits['header'] = line_credits_header
         line._credits['template'] = line_credits_template
@@ -290,7 +289,7 @@ class Creditator(object):
         return (EARLY_MORNING_BEGIN < BEGIN < EARLY_MORNING_END) or (EARLY_MORNING_BEGIN < END < EARLY_MORNING_END)
 
     @staticmethod
-    def credit_row_classifier(duty_day):
+    def duty_day_classifier(duty_day):
         """Given a DutyDay, this classifier will insert the following tags:
            - regular : any continental flight under 10:00 duty time. It is the default value
            - transoceanic : MAD, CDG, MXP, FCO, LHR, AMS, SVO, BCN, MUC, FRA, NRT, ICN, PVG, PEK
@@ -315,141 +314,38 @@ class Creditator(object):
                 if event.duration > Duration(4 * 60 + 30):
                     if duty_day._credits['block'] > Duration(10 * 60) or \
                                     duty_day._credits['daily'] > Duration(12 * 60) or \
-                            (duty_day._credits['daily'] > Duration(9 * 60 + 30) and \
-                                     Creditator.has_early_morning_time(duty_day)):
+                            (duty_day._credits['daily'] > Duration(9 * 60 + 30) and
+                                 Creditator.has_early_morning_time(duty_day)):
                         duty_day._credits['duty_type'] = 'long haul'
                     break
 
-
-class CreditRow(object):
-    string_section_template = "{0.day: >2} {0.routing!s:20s} {0.event_names!s:25s} {0.duty_type:18s} {0.report:%H:%M} " \
-                              "{0.release:%H:%M}    "
-    numeric_section_template = " {0.duty_time:3} {0.block:3} {0.dh:3} {0.night_time:3} {0.xblock:3} " \
-                               "{0.xduty_time:3} {0.maxirre:3} {0.pending_rest:3} {0.xturn:3}"
-
-    def __init__(self, duty_day=None):
-        """A CreditRow models all credits for a given DutyDay
-            Note that a CreditRow has two sections, one containing all strings info
-            and the second part contains the credits """
-        if duty_day:
-            self.day = duty_day.begin.day
-            self.routing = FormattedList([duty_day.origin])
-            self.block, self.dh, self.duty_time = duty_day.compute_credits()
-            self.report = duty_day.report
-            self.release = duty_day.release
-        else:
-            self.day = 2 * ' '
-            self.routing = 3 * ' '
-            self.block, self.dh, self.duty_time = Duration(0), Duration(0), Duration(0)
-            self.report = 5 * ' '
-            self.release = 5 * ' '
-        self.duty_type = 'regular'
-        self.event_names = FormattedList([''])
-        self.night_time = Duration(0)
-        self.xduty_time = Duration(0)
-        self.xblock = Duration(0)
-        self.maxirre = Duration(0)
-        self.pending_rest = Duration(0)
-        self.xturn = Duration(0)
-
-    def from_credits(self, block, dh, night_time, xduty_time, xblock, maxirre):
-        credit_row = CreditRow('', 'Totals', ' ', None, None)
-        credit_row.block = block
-        credit_row.dh = dh
-        credit_row.night_time = night_time
-        credit_row.xduty_time = xduty_time
-        credit_row.xblock = xblock
-        credit_row.maxirre = maxirre
-        return credit_row
-
-    def calculate_totals(self):
-        credits_array = self.as_list()
-        formatted_totals = TotalsRow(credits_array)
-        return formatted_totals
-
-    def __add__(self, other):
-        this_list = self.as_list()
-        other_list = other.as_list()
-        lists_of_lists = [this_list, other_list]
-        return self.from_credits(*[sum(x) for x in zip(*lists_of_lists)])
-
-    def as_list(self):
-        return [self.duty_time, self.block, self.dh, self.night_time,
-                self.xblock, self.xduty_time, self.maxirre, self.pending_rest, self.xturn]
-
-    def __str__(self):
-        """Use the class variable template"""
-        st_section = CreditRow.string_section_template.format(self)
-        nu_section = CreditRow.numeric_section_template.format(self)
-        return st_section + nu_section
-
-
-class CreditTable(object):
-    """Adds al credit_rows to a single table"""
-
-    def __init__(self):
-        """Start up a List"""
-        self.credit_rows = []
-        self._totals = None
-
-    def append(self, credit_holder):
-        """appends a row to the current table"""
-        if isinstance(credit_holder, CreditRow):
-            self.credit_rows.append(credit_holder)
-        else:
-            self.credit_rows.extend(credit_holder.credit_rows)
-
-    def calculate_totals(self):
-        credits_array = np.array([row.as_list() for row in self.credit_rows])
-        formatted_totals = TotalsRow(credits_array.sum(axis=0))
-        self._totals = formatted_totals
-        return self._totals
-
-    def __getitem__(self, item):
-        return self.credit_rows[item]
-
-    def payable(self):
-        block = GARANTIA_HORAS_DE_VUELO_MENSUAL if self._totals[1] < GARANTIA_HORAS_DE_VUELO_MENSUAL \
-            else self._totals[1]
-        dh = self._totals[2] - JORNADA_ORDINARIA_DH_MENSUAL
-        xblock = self._totals[4]
-        maxirre = self._totals[6]
-        pending_rest = self._totals[7]
-        xturn = self._totals[8]
+    @staticmethod
+    def month_credits(credits_dict):
+        block = GARANTIA_HORAS_DE_VUELO_MENSUAL if credits_dict['block'] < GARANTIA_HORAS_DE_VUELO_MENSUAL \
+            else credits_dict['block']
+        dh = credits_dict['dh'] - JORNADA_ORDINARIA_DH_MENSUAL
+        xblock = credits_dict['xblock']
+        maxirre = credits_dict['maxirre']
+        pending_rest = credits_dict['pending_rest']
+        xturn = credits_dict['xturn']
+        delay = credits_dict['delay']
 
         t_ext_vuelo = block + \
                       dh + \
                       xblock + \
-                      maxirre + \
                       pending_rest + \
-                      xturn \
-                      - JORNADA_ORDINARIA_VUELO_MENSUAL
-        t_ext_servicio = self._totals[5]
-        t_ext_nocturno = self._totals[3]
+                      xturn + \
+                      delay - \
+                      JORNADA_ORDINARIA_VUELO_MENSUAL
+        t_ext_servicio = credits_dict['xduty']
+        t_ext_nocturno = credits_dict['night']
 
         return """
-        t_ext_vuelo:    {:2}
-        t_ext_servicio: {:2}
-        t_ext_nocturno: {:2}
-        maxirre: {:2}
-        """.format(t_ext_vuelo, t_ext_servicio, t_ext_nocturno, maxirre)
-
-    def __str__(self):
-        output = ''
-        for creditRow in self.credit_rows:
-            output += str(creditRow) + "\n"
-        return output.rstrip()
-
-
-class TotalsRow(list):
-    def __str__(self):
-        """Use the class variable template"""
-        string_section = '   TOTALES                                                                           '
-        numeric_section = ''
-        for element in self:
-            numeric_section = numeric_section + '{:3}'.format(element) + ' '
-
-        return string_section + numeric_section
+                t_ext_vuelo:    {:2}
+                t_ext_servicio: {:2}
+                t_ext_nocturno: {:2}
+                maxirre:        {:2}
+                """.format(t_ext_vuelo, t_ext_servicio, t_ext_nocturno, maxirre)
 
 
 class FormattedList(list):
