@@ -190,8 +190,13 @@ class Creditator(object):
 
         # 2. Calculate pending_rest between each duty day
         for rest, duty_day in zip(trip.rests, trip.duty_days):
-            if duty_day.begin.month == self.month_scope and rest < Duration(12 * 60):
-                duty_day._credits['pending_rest'] = Creditator.calculate_pending_rest(rest)
+            print("within the pending_rest method " )
+            print(type(rest), rest)
+            if (duty_day.begin.month == self.month_scope) and rest < Duration(12 * 60):
+                print("passed the if.... duty_day.begin.month == self.month_scope ")
+                tempo = Creditator.calculate_pending_rest(rest)
+                duty_day._credits['pending_rest'] = tempo
+                print("within the pending_rest method, ", tempo)
                 trip._credits['pending_rest'] += duty_day._credits['pending_rest']
 
         # 3 Assign the needed template to print credits

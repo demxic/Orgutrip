@@ -16,7 +16,7 @@ from rosterReaders.txtroster import RosterReader
 
 #Mis roles
 rolFile = "C:\\Users\\Xico\\Google Drive\\Sobrecargo\\roles\\201707.txt"
-summaryFile = "C:\\Users\\Xico\\Google Drive\\Sobrecargo\\Resumen de horas\\2017\\res201706.txt"
+summaryFile = "C:\\Users\\Xico\\Google Drive\\Sobrecargo\\Resumen de horas\\2017\\res201707.txt"
 
 
 class Menu:
@@ -152,8 +152,8 @@ class Menu:
         conn = sqlite3.connect('C:\\Users\\Xico\\Dropbox\\PyCharmProjects\\Orgutrip\\data\\flights.db')
         c = conn.cursor()
         for duty_day in self.line.return_duty_days():
+            events = duty_day.events
             try:
-                events = duty_day.events
                 for flight in duty_day.events:
                     print(50 * '*')
                     print("Flight's actual_itinerary itinerary: ", flight.name)
@@ -167,7 +167,22 @@ class Menu:
                     flight.published_itinerary = scheduled_itinerary
                     print(flight.published_itinerary)
             except:
-                pass
+                    try:
+                        for flight in duty_day.events:
+                            print(50 * '*')
+                            print("Flight's actual_itinerary itinerary: ", flight.name)
+                            print(flight.actual_itinerary)
+                            print()
+                            for row in c.execute(SQL, [flight.name, flight.begin.date()-timedelta(days=-1)]):
+                                begin = datetime.strptime(row[0] + row[3], "%Y-%m-%d%H%M")
+                                duration = timedelta(minutes=int(row[5]))
+                                scheduled_itinerary = Itinerary.from_timedelta(begin, duration)
+                                print("Flight's scheduled itinerary: ", flight.name)
+                            flight.published_itinerary = scheduled_itinerary
+                            print(flight.published_itinerary)
+                    except:
+                        pass
+
         conn.close()
 
     def print_components(self):
