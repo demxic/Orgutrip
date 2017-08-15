@@ -6,6 +6,7 @@ import model.creditator as creditator
 from model.creditator import Creditator
 from model.crewmember import CrewMember
 from model.elements import DateTracker
+from model.payment import compensation_dict, PayCheck
 from model.scheduleClasses import Itinerary, Trip, DutyDay, GroundDuty
 from rosterReaders.lineCreator import Liner
 from rosterReaders.txtroster import RosterReader
@@ -96,11 +97,19 @@ class Menu:
         for row in self.line.compute_credits(cr):
             print(row)
         print(self.line._credits['template'].format(**self.line._credits))
-        print(cr.month_credits(self.line._credits))
-        # compensations = compensation_dict(691.02*30)
-        # paycheck = PayCheck(compensations, credit_table.totals())
-        # paycheck.calculate()
-        # print(paycheck)
+        mmmm = cr.month_credits(self.line._credits)
+        print("""
+                        t_ext_vuelo:    {xblock:2}
+                        t_ext_servicio: {xduty:2}
+                        t_ext_nocturno: {night:2}
+                        maxirre:        {maxirre:2}
+                        séptimo día     {day7}
+                        prima dominical {sundays}
+                        """.format(**mmmm))
+        compensations = compensation_dict(691.02*30)
+        paycheck = PayCheck(compensations)
+        paycheck.calculate(mmmm)
+        print(paycheck)
 
     def viaticum(self):
         pass

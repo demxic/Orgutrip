@@ -62,7 +62,7 @@ line_credits_template = 50 * ' ' + "TOTALS" + 27 * ' ' + num_part_template
 
 # Headers
 duty_day_credits_header = 'D  RUTA                 SERVICIOS              TIPO DE JORNADA       FIMA  CIERRE    ' \
-                          'DUTY  BLK   DH    NOCT  XBLK  XDTY  IRRE  DLAY  PLAT  '
+                          'DUTY  BLK   DH    NOCT  XBLK  XDTY  IRRE  DLAY  PLAT  SUND'
 trip_credits_header = duty_day_credits_header + 'RECE  '
 line_credits_header = trip_credits_header + 'DESC 7DAY FERI'
 
@@ -113,7 +113,8 @@ class Creditator(object):
                                   'maxirre': Duration(0),
                                   'delay': duty_day.delay,
                                   'pending_rest': Duration(0),
-                                  'xturn': Duration(0)})
+                                  'xturn': Duration(0),
+                                  'sundays': 0})
 
         # 2. Calculate night, event_names and routing
         for event in duty_day.events:
@@ -179,6 +180,7 @@ class Creditator(object):
         trip._credits['delay'] = Duration(0)
         trip._credits['pending_rest'] = Duration(0)
         trip._credits['xturn'] = Duration(0)
+        trip._credits['sundays'] = 0
         for duty_day in trip.duty_days:
             if duty_day.begin.month == self.month_scope:
                 duty_day.compute_credits(self)
@@ -191,6 +193,7 @@ class Creditator(object):
                 trip._credits['maxirre'] += duty_day._credits['maxirre']
                 trip._credits['delay'] += duty_day._credits['delay']
                 trip._credits['xturn'] += duty_day._credits['xturn']
+                trip._credits['sundays'] += duty_day._credits['sundays']
                 credits_list.append(duty_day._credits)
 
         # 2. Calculate pending_rest between each duty day
@@ -225,7 +228,9 @@ class Creditator(object):
                               'maxirre': Duration(0),
                               'delay': Duration(0),
                               'pending_rest': Duration(0),
-                              'xturn': Duration(0)})
+                              'xturn': Duration(0),
+                              'sundays': 0,
+                              '7day': 0})
 
         # 2 Add all credits to find totals
         line_credits_list = []
@@ -243,6 +248,7 @@ class Creditator(object):
                 line._credits['delay'] += duty._credits['delay']
                 line._credits['pending_rest'] += duty._credits['pending_rest']
                 line._credits['xturn'] += duty._credits['xturn']
+                line._credits['sundays'] += duty._credits['sundays']
 
         # 3 Assign the needed template to print credits
         line._credits['header'] = line_credits_header
@@ -327,31 +333,26 @@ class Creditator(object):
 
     @staticmethod
     def month_credits(credits_dict):
+        payable_credits = {}
         block = GARANTIA_HORAS_DE_VUELO_MENSUAL if credits_dict['block'] < GARANTIA_HORAS_DE_VUELO_MENSUAL \
             else credits_dict['block']
         dh = credits_dict['dh'] - JORNADA_ORDINARIA_DH_MENSUAL
-        xblock = credits_dict['xblock']
-        maxirre = credits_dict['maxirre']
-        pending_rest = credits_dict['pending_rest']
-        xturn = credits_dict['xturn']
-        delay = credits_dict['delay']
 
-        t_ext_vuelo = block + \
-                      dh + \
-                      xblock + \
-                      pending_rest + \
-                      xturn + \
-                      delay - \
-                      JORNADA_ORDINARIA_VUELO_MENSUAL
-        t_ext_servicio = credits_dict['xduty']
-        t_ext_nocturno = credits_dict['night']
+        payable_credits['xblock'] = block + \
+                                    dh + \
+                                    credits_dict['xblock'] + \
+                                    credits_dict['pending_rest'] + \
+                                    credits_dict['xturn'] + \
+                                    credits_dict['delay'] - \
+                                    JORNADA_ORDINARIA_VUELO_MENSUAL
+        payable_credits['xduty'] = credits_dict['xduty']
+        payable_credits['night'] = credits_dict['night']
+        payable_credits['maxirre'] = credits_dict['maxirre']
+        payable_credits['sundays'] = credits_dict['sundays']
+        payable_credits['day7'] = credits_dict['7day']
 
-        return """
-                t_ext_vuelo:    {:2}
-                t_ext_servicio: {:2}
-                t_ext_nocturno: {:2}
-                maxirre:        {:2}
-                """.format(t_ext_vuelo, t_ext_servicio, t_ext_nocturno, maxirre)
+
+        return payable_credits
 
 
 class FormattedList(list):

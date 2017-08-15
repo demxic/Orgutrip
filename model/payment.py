@@ -9,16 +9,16 @@ def compensation_dict(monthly_salary, assistance_bonus = 469):
     comp_dict['block_overtime'] = comp_dict['monthly_salary'] / 65 * 2
     comp_dict['unsurpassable'] = comp_dict['block_overtime'] * 2
     comp_dict['vacation_bonus'] = comp_dict['daily_salary'] * 15
-    comp_dict['assitance_bonus'] = assistance_bonus
+    comp_dict['assistance_bonus'] = assistance_bonus
+    comp_dict['night_premium'] = 0.002 * comp_dict['monthly_salary']
     return comp_dict
 
 
 class PayCheck(object):
 
-    def __init__(self, compensation_dict, credit_row):
+    def __init__(self, compensations):
         """ Calculates all pay_items within a paycheck for the given compensation factors """
-        self.compensation_dict = compensation_dict
-        self.credit_row = credit_row
+        self.compensation_dict = compensations
         self.salary = None
         self.holiday = None
         self.rest_day = None
@@ -30,16 +30,16 @@ class PayCheck(object):
         self.vacation_bonus = None
         self.assistance_bonus = None
 
-    def calculate(self):
+    def calculate(self, credits):
         """Calculate all Paycheck items from their corresponding credit item"""
         self.salary = self.compensation_dict['daily_salary'] * 14
         self.holiday = self.compensation_dict['daily_salary'] * 0
-        self.rest_day = self.compensation_dict['daily_salary'] * 0
-        self.sunday_premium = self.compensation_dict['sunday_premium'] * 0
-        self.duty_overtime = self.compensation_dict['duty_overtime'] * self.credit_row.xduty_time
-        self.block_overtime = self.compensation_dict['block_overtime'] * self.credit_row.xblock_time
-        self.unsurpassable = self.compensation_dict['unsurpassable'] * self.credit_row.maxirre
-        self.night_premium = self.compensation_dict['night_premium'] * self.credit_row.night_time
+        self.rest_day = self.compensation_dict['daily_salary'] * credits['day7']
+        self.sunday_premium = self.compensation_dict['sunday_premium'] * credits['sundays']
+        self.duty_overtime = self.compensation_dict['duty_overtime'] * credits['xduty']
+        self.block_overtime = self.compensation_dict['block_overtime'] * credits['xblock']
+        self.unsurpassable = self.compensation_dict['unsurpassable'] * credits['maxirre']
+        self.night_premium = self.compensation_dict['night_premium'] * credits['night']
         self.vacation_bonus = self.compensation_dict['vacation_bonus'] * 0
         self.assistance_bonus = self.compensation_dict['assistance_bonus']
 
@@ -50,12 +50,12 @@ class PayCheck(object):
 
     def __str__(self):
         template = """
-        SUELDO:               {0}
-        T EXT SERVICIO:       {1}
-        T EXT VUELO:          {2}
-        MAX IRREBASABLE:      {3}
-        T EXT NOCTURNO:       {4}
-        PREMIO ASISTENCIA:    {5}
+        SUELDO:               ${0: >9.2f}
+        T EXT SERVICIO:       ${1: >9.2f}
+        T EXT VUELO:          ${2: >9.2f}
+        MAX IRREBASABLE:      ${3: >9.2f}
+        T EXT NOCTURNO:       ${4: >9.2f}
+        PREMIO ASISTENCIA:    ${5: >9.2f}
         """
         return template.format(self.salary, self.duty_overtime,
                                self.block_overtime, self.unsurpassable,
