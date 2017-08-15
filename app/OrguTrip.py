@@ -189,14 +189,8 @@ class Menu:
         for duty in self.line:
             if isinstance(duty, Trip):
                 for duty_day in duty.duty_days:
-                    for event in duty_day.events:
-                        print(event)
-            elif isinstance(duty, DutyDay):
-                for event in duty_day.events:
-                    print(event)
-            else:
-                event = duty
-                print(event)
+                    for turn in duty_day.turns:
+                        print(turn)
 
     def quit(self):
         print("adiós")

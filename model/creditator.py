@@ -47,6 +47,7 @@ GARANTIA_HORAS_DE_VUELO_MENSUAL = Duration(15 * 60)
 # Otros créditos
 RECESO_CONTINENTAL = Duration(12 * 60)
 RECESO_TRANS = Duration(48 * 60)
+MAX_TURN_TIME = Duration(3 * 60)
 
 # Templates
 string_part_template = "{day: >2} {routing!s:20s} {event_names!s:25s} {duty_type:18s} {report:%H:%M} " \
@@ -126,7 +127,11 @@ class Creditator(object):
             duty_day._credits['routing'].append(event.destination)
         duty_day._credits['total'] = duty_day._credits['block'] + duty_day._credits['dh']
 
-        # 3. Classify duty
+        # 3. Calculate xturn:
+        for turn in duty_day.turns:
+            duty_day._credits['xturn'] += (turn - MAX_TURN_TIME)
+
+        # 4. Classify duty
         Creditator.duty_day_classifier(duty_day)
 
         if duty_day._credits['duty_type'] == 'regular':
@@ -150,11 +155,11 @@ class Creditator(object):
             if duty_day._credits['maxirre'] > Duration(0):
                 duty_day._credits['xduty'] = Duration(5 * 60)
 
-        # 4. If there is a maxirre, normal xduty time ends where maxirre starts
+        # 5. If there is a maxirre, normal xduty time ends where maxirre starts
         if duty_day._credits['maxirre'] > Duration(0):
             duty_day._credits['xduty'] = Duration(5 * 60)
 
-        # 5. Assign the needed template to print credits
+        # 6. Assign the needed template to print credits
         duty_day._credits['header'] = duty_day_credits_header
         duty_day._credits['template'] = duty_day_credits_template
 
@@ -190,13 +195,9 @@ class Creditator(object):
 
         # 2. Calculate pending_rest between each duty day
         for rest, duty_day in zip(trip.rests, trip.duty_days):
-            print("within the pending_rest method " )
-            print(type(rest), rest)
             if (duty_day.begin.month == self.month_scope) and rest < Duration(12 * 60):
-                print("passed the if.... duty_day.begin.month == self.month_scope ")
                 tempo = Creditator.calculate_pending_rest(rest)
                 duty_day._credits['pending_rest'] = tempo
-                print("within the pending_rest method, ", tempo)
                 trip._credits['pending_rest'] += duty_day._credits['pending_rest']
 
         # 3 Assign the needed template to print credits

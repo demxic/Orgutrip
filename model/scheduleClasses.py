@@ -179,9 +179,8 @@ class DutyDay(object):
 
     @property
     def delay(self):
-        dela = Duration(self.begin - self.report) - Duration(60)
-        # print("accesing delay", dela )
-        return dela
+        delay = Duration(self.begin - self.report) - Duration(60)
+        return delay
 
     @property
     def duration(self):
