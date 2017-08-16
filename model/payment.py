@@ -1,7 +1,7 @@
-def compensation_dict(monthly_salary, assistance_bonus = 469):
+def compensation_dict(monthly_salary, assistance_bonus=469):
     comp_dict = dict()
     comp_dict['monthly_salary'] = monthly_salary
-    comp_dict['daily_salary'] = monthly_salary/30
+    comp_dict['daily_salary'] = monthly_salary / 30
     comp_dict['holiday'] = comp_dict['daily_salary'] * 2
     comp_dict['restday'] = comp_dict['daily_salary'] * 2
     comp_dict['sunday_premium'] = comp_dict['daily_salary'] * 0.25
@@ -15,7 +15,6 @@ def compensation_dict(monthly_salary, assistance_bonus = 469):
 
 
 class PayCheck(object):
-
     def __init__(self, compensations):
         """ Calculates all pay_items within a paycheck for the given compensation factors """
         self.compensation_dict = compensations
@@ -42,6 +41,8 @@ class PayCheck(object):
         self.night_premium = self.compensation_dict['night_premium'] * credits['night']
         self.vacation_bonus = self.compensation_dict['vacation_bonus'] * 0
         self.assistance_bonus = self.compensation_dict['assistance_bonus']
+        self.total = self.salary + self.duty_overtime + self.block_overtime + self.unsurpassable + \
+                     self.night_premium + self.assistance_bonus
 
     def to_list(self):
         return [self.salary, self.holiday, self.restday, self.sunday_premium, self.duty_overtime,
@@ -56,7 +57,10 @@ class PayCheck(object):
         MAX IRREBASABLE:      ${3: >9.2f}
         T EXT NOCTURNO:       ${4: >9.2f}
         PREMIO ASISTENCIA:    ${5: >9.2f}
+        ---------------------------------------
+        TOTAL                 ${6: >9.2f}
         """
         return template.format(self.salary, self.duty_overtime,
                                self.block_overtime, self.unsurpassable,
-                               self.night_premium, self.assistance_bonus)
+                               self.night_premium, self.assistance_bonus,
+                               self.total)

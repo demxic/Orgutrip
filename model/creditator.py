@@ -62,7 +62,7 @@ line_credits_template = 50 * ' ' + "TOTALS" + 27 * ' ' + num_part_template
 
 # Headers
 duty_day_credits_header = 'D  RUTA                 SERVICIOS              TIPO DE JORNADA       FIMA  CIERRE    ' \
-                          'DUTY  BLK   DH    NOCT  XBLK  XDTY  IRRE  DLAY  PLAT  SUND'
+                          'DUTY  BLK   DH    NOCT  XBLK  XDTY  IRRE  DLAY  PLAT  SUND  '
 trip_credits_header = duty_day_credits_header + 'RECE  '
 line_credits_header = trip_credits_header + 'DESC 7DAY FERI'
 
