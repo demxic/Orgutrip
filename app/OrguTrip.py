@@ -12,12 +12,12 @@ from rosterReaders.lineCreator import Liner
 from rosterReaders.txtroster import RosterReader
 
 # Roles de la Cuija
-rolFile = "C:\\Users\\Xico\\Google Drive\\Sobrecargo\\roles\\Rol-2017-07-P.txt"
-summaryFile = "C:\\Users\\Xico\\Google Drive\\Sobrecargo\\Resumen de horas\\2017\\Rol-2017-07-R.txt"
+# rolFile = "C:\\Users\\Xico\\Google Drive\\Sobrecargo\\roles\\Rol-2017-07-P.txt"
+# summaryFile = "C:\\Users\\Xico\\Google Drive\\Sobrecargo\\Resumen de horas\\2017\\Rol-2017-07-R.txt"
 
 # Mis roles
-# rolFile = "C:\\Users\\Xico\\Google Drive\\Sobrecargo\\roles\\201707.txt"
-# summaryFile = "C:\\Users\\Xico\\Google Drive\\Sobrecargo\\Resumen de horas\\2017\\res201707.txt"
+rolFile = "C:\\Users\\Xico\\Google Drive\\Sobrecargo\\roles\\201707.txt"
+summaryFile = "C:\\Users\\Xico\\Google Drive\\Sobrecargo\\Resumen de horas\\2017\\res201707.txt"
 
 
 class Menu:
@@ -104,7 +104,7 @@ class Menu:
                         t_ext_nocturno: {night:2}
                         maxirre:        {maxirre:2}
                         séptimo día     {day7}
-                        prima dominical {sundays}
+                        prima dominical {sunday}
                         """.format(**mmmm))
         compensations = compensation_dict(925.96*30)
         paycheck = PayCheck(compensations)

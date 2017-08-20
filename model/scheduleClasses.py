@@ -297,6 +297,12 @@ class Trip(object):
     def pop(self, index=-1):
         return self.duty_days.pop(index)
 
+    def how_many_sundays(self):
+        delta = self.release.date() - self.report.date()
+        all_dates = (self.report.date() + timedelta(days=i) for i in range(delta.days + 1))
+        sundays = filter(lambda date: date.isoweekday() == 7, all_dates)
+        return len(list(sundays))
+
     def __delitem__(self, key):
         del self.duty_days[key]
 

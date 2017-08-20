@@ -11,6 +11,7 @@ from model.timeClasses import Duration
 TRANSOCEANIC = ['MAD', 'CDG', 'MXP', 'FCO', 'LHR', 'AMS', 'SVO', 'BCN', 'MUC', 'FRA', 'NRT', 'ICN', 'PVG', 'PEK']
 MINIMUM_BLOCK = Duration(13 * 60)
 MINIMUM_DUTY = Duration(15 * 60)
+WORKED_DAY = Duration(1 * 60 + 30)
 
 # TABLA 1  Jornada continental
 JORNADA_ORDINARIA_VUELO_REGULAR = Duration(7 * 60 + 30)
@@ -62,7 +63,7 @@ line_credits_template = 50 * ' ' + "TOTALS" + 27 * ' ' + num_part_template
 
 # Headers
 duty_day_credits_header = 'D  RUTA                 SERVICIOS              TIPO DE JORNADA       FIMA  CIERRE    ' \
-                          'DUTY  BLK   DH    NOCT  XBLK  XDTY  IRRE  DLAY  PLAT  SUND  '
+                          'DUTY  BLK   DH    NOCT  XBLK  XDTY  IRRE  DLAY  PLAT  '
 trip_credits_header = duty_day_credits_header + 'RECE  '
 line_credits_header = trip_credits_header + 'DESC 7DAY FERI'
 
@@ -114,7 +115,7 @@ class Creditator(object):
                                   'delay': duty_day.delay,
                                   'pending_rest': Duration(0),
                                   'xturn': Duration(0),
-                                  'sundays': 0})
+                                  'sunday': 0})
 
         # 2. Calculate night, event_names and routing
         for event in duty_day.events:
@@ -180,7 +181,7 @@ class Creditator(object):
         trip._credits['delay'] = Duration(0)
         trip._credits['pending_rest'] = Duration(0)
         trip._credits['xturn'] = Duration(0)
-        trip._credits['sundays'] = 0
+        trip._credits['sunday'] = 0
         for duty_day in trip.duty_days:
             if duty_day.begin.month == self.month_scope:
                 duty_day.compute_credits(self)
@@ -193,7 +194,7 @@ class Creditator(object):
                 trip._credits['maxirre'] += duty_day._credits['maxirre']
                 trip._credits['delay'] += duty_day._credits['delay']
                 trip._credits['xturn'] += duty_day._credits['xturn']
-                trip._credits['sundays'] += duty_day._credits['sundays']
+                trip._credits['sunday'] += duty_day._credits['sunday']
                 credits_list.append(duty_day._credits)
 
         # 2. Calculate pending_rest between each duty day
@@ -203,7 +204,15 @@ class Creditator(object):
                 duty_day._credits['pending_rest'] = tempo
                 trip._credits['pending_rest'] += duty_day._credits['pending_rest']
 
-        # 3 Assign the needed template to print credits
+        # 3. How many sundays?
+        trip._credits['sunday'] = trip.how_many_sundays()
+        trip_release_time = Duration(duty_day.release.hour * 60 + duty_day.release.minute)
+        trip_ending_weekday = duty_day.release.isoweekday()
+        is_a_worked_day = trip_release_time > WORKED_DAY
+        if trip_ending_weekday == 7 and not is_a_worked_day:
+            trip._credits['sunday'] -= 1
+
+        # 4 Assign the needed template to print credits
         trip._credits['header'] = trip_credits_header
         trip._credits['template'] = trip_credits_template
 
@@ -229,7 +238,7 @@ class Creditator(object):
                               'delay': Duration(0),
                               'pending_rest': Duration(0),
                               'xturn': Duration(0),
-                              'sundays': 0,
+                              'sunday': 0,
                               '7day': 0})
 
         # 2 Add all credits to find totals
@@ -248,7 +257,7 @@ class Creditator(object):
                 line._credits['delay'] += duty._credits['delay']
                 line._credits['pending_rest'] += duty._credits['pending_rest']
                 line._credits['xturn'] += duty._credits['xturn']
-                line._credits['sundays'] += duty._credits['sundays']
+                line._credits['sunday'] += duty._credits['sunday']
 
         # 3 Assign the needed template to print credits
         line._credits['header'] = line_credits_header
@@ -348,7 +357,7 @@ class Creditator(object):
         payable_credits['xduty'] = credits_dict['xduty']
         payable_credits['night'] = credits_dict['night']
         payable_credits['maxirre'] = credits_dict['maxirre']
-        payable_credits['sundays'] = credits_dict['sundays']
+        payable_credits['sunday'] = credits_dict['sunday']
         payable_credits['day7'] = credits_dict['7day']
 
 

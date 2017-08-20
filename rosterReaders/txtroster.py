@@ -10,7 +10,7 @@ from data.regex import crewstats_no_type, crewstats_with_type,\
     rosterDayRE, airItineraryRE, itineraryRE, carryInRE
 from model.elements import Dotdict
 
-
+# TODO : This basically returns a JSON format of the given roster
 class RosterReader(object):
     def __init__(self, fp=None):
         """

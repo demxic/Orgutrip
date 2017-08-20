@@ -34,7 +34,7 @@ class PayCheck(object):
         self.salary = self.compensation_dict['daily_salary'] * 14
         self.holiday = self.compensation_dict['daily_salary'] * 0
         self.rest_day = self.compensation_dict['daily_salary'] * credits['day7']
-        self.sunday_premium = self.compensation_dict['sunday_premium'] * credits['sundays']
+        self.sunday_premium = self.compensation_dict['sunday_premium'] * credits['sunday']
         self.duty_overtime = self.compensation_dict['duty_overtime'] * credits['xduty']
         self.block_overtime = self.compensation_dict['block_overtime'] * credits['xblock']
         self.unsurpassable = self.compensation_dict['unsurpassable'] * credits['maxirre']
@@ -52,15 +52,16 @@ class PayCheck(object):
     def __str__(self):
         template = """
         SUELDO:               ${0: >9.2f}
-        T EXT SERVICIO:       ${1: >9.2f}
-        T EXT VUELO:          ${2: >9.2f}
-        MAX IRREBASABLE:      ${3: >9.2f}
-        T EXT NOCTURNO:       ${4: >9.2f}
-        PREMIO ASISTENCIA:    ${5: >9.2f}
+        PRIMA DOMINICAL:      ${1: >9.2f}
+        T EXT SERVICIO:       ${2: >9.2f}
+        T EXT VUELO:          ${3: >9.2f}
+        MAX IRREBASABLE:      ${4: >9.2f}
+        T EXT NOCTURNO:       ${5: >9.2f}
+        PREMIO ASISTENCIA:    ${6: >9.2f}
         ---------------------------------------
-        TOTAL                 ${6: >9.2f}
+        TOTAL                 ${7: >9.2f}
         """
-        return template.format(self.salary, self.duty_overtime,
+        return template.format(self.salary, self.sunday_premium, self.duty_overtime,
                                self.block_overtime, self.unsurpassable,
                                self.night_premium, self.assistance_bonus,
                                self.total)
