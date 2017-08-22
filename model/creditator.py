@@ -161,7 +161,15 @@ class Creditator(object):
         if duty_day._credits['maxirre'] > Duration(0):
             duty_day._credits['xduty'] = Duration(5 * 60)
 
-        # 6. Assign the needed template to print credits
+        # 6. How many sundays?
+        duty_day._credits['sunday'] = duty_day.how_many_sundays()
+        duty_day_release_time = Duration(duty_day.release.hour * 60 + duty_day.release.minute)
+        duty_day_ending_weekday = duty_day.release.isoweekday()
+        is_a_worked_day = duty_day_release_time > WORKED_DAY
+        if duty_day_ending_weekday == 7 and not is_a_worked_day:
+            duty_day._credits['sunday'] -= 1
+
+        # 7. Assign the needed template to print credits
         duty_day._credits['header'] = duty_day_credits_header
         duty_day._credits['template'] = duty_day_credits_template
 

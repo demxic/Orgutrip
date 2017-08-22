@@ -225,6 +225,14 @@ class DutyDay(object):
         for event in all_events:
             self.events.append(event)
 
+    def how_many_sundays(self):
+        sundays = []
+        if self.report.isoweekday() == '7':
+            sundays.append(self.report.date())
+        if self.release.isoweekday() == '7':
+            sundays.append(self.release.date())
+        return len(sundays)
+
     def __str__(self):
         """The string representation of the current DutyDay"""
         rpt = '{:%H%M}'.format(self.report)
