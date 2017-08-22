@@ -2,8 +2,6 @@ from data import rules
 from model.scheduleClasses import Line, Flight, GroundDuty, DutyDay, Trip, Itinerary, Marker
 from datetime import datetime, timedelta
 
-from model.timeClasses import Duration
-
 
 class Liner(object):
     """´Turns a Roster Reader into a bidline"""

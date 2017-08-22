@@ -26,6 +26,12 @@ class Itinerary(object):
     def duration(self):
         return Duration(self.end - self.begin)
 
+    def get_elapsed_dates(self):
+        """Returns a list of dates in range [self.begin, self.end]"""
+        delta = self.end.date() - self.begin.date()
+        all_dates = (self.begin.date() + timedelta(days=i) for i in range(delta.days + 1))
+        return list(all_dates)
+
     def compute_credits(self, itinerator = None):
         return None
 
@@ -195,6 +201,12 @@ class DutyDay(object):
     def origin(self):
         return self.events[0].origin
 
+    def get_elapsed_dates(self):
+        """Returns a list of dates in range [self.report, self.release]"""
+        delta = self.release.date() - self.report.date()
+        all_dates = [self.report.date() + timedelta(days=i) for i in range(delta.days + 1)]
+        return all_dates
+
     def compute_credits(self, creditator=None):
         """Cares only for block, dh, total and daily"""
         # TODO : Take into consideration whenever there is a change in month
@@ -282,6 +294,12 @@ class Trip(object):
         """Returns a list of all layover stations """
         return [duty_day.events[-1].destination for duty_day in self.duty_days]
 
+    def get_elapsed_dates(self):
+        """Returns a list of dates in range [self.report, self.release]"""
+        delta = self.release.date() - self.report.date()
+        all_dates = [self.report.date() + timedelta(days=i) for i in range(delta.days + 1)]
+        return all_dates
+
     def compute_credits(self, creditator=None):
 
         if creditator:
@@ -306,9 +324,7 @@ class Trip(object):
         return self.duty_days.pop(index)
 
     def how_many_sundays(self):
-        delta = self.release.date() - self.report.date()
-        all_dates = (self.report.date() + timedelta(days=i) for i in range(delta.days + 1))
-        sundays = filter(lambda date: date.isoweekday() == 7, all_dates)
+        sundays = filter(lambda date: date.isoweekday() == 7, self.get_elapsed_dates())
         return len(list(sundays))
 
     def __delitem__(self, key):

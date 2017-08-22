@@ -3,6 +3,8 @@ Created on 23/06/2016
 
 @author: Xico
 """
+from datetime import timedelta
+
 import numpy as np
 from model.timeClasses import Duration
 
@@ -65,11 +67,31 @@ line_credits_template = 50 * ' ' + "TOTALS" + 27 * ' ' + num_part_template
 duty_day_credits_header = 'D  RUTA                 SERVICIOS              TIPO DE JORNADA       FIMA  CIERRE    ' \
                           'DUTY  BLK   DH    NOCT  XBLK  XDTY  IRRE  DLAY  PLAT  '
 trip_credits_header = duty_day_credits_header + 'RECE  '
-line_credits_header = trip_credits_header + 'DESC 7DAY FERI'
+line_credits_header = trip_credits_header + 'DESC FERI'
 
 
 def get_rules_for(position, group):
     pass
+
+
+class ConsecutiveDays(object):
+    """Keeps track of how many consecutive days have been worked"""
+
+    def __init__(self, starting_date, frequency):
+        self.frequency = frequency
+        self.last_counted_date = starting_date
+        self.count = 0
+        self.dates = []
+
+    def calculate(self, duty):
+        if duty.report.date() != self.last_counted_date + timedelta(days=1):
+            self.count = 0
+        for date in duty.get_elapsed_dates():
+            self.count += 1
+            if self.count == self.frequency:
+                self.count = 0
+                self.dates.append(date)
+        self.last_counted_date = duty.release.date()
 
 
 class Creditator(object):
@@ -251,6 +273,7 @@ class Creditator(object):
 
         # 2 Add all credits to find totals
         line_credits_list = []
+        consecutive_days = ConsecutiveDays(line.duties[0].report.date(), 7)
         for duty in line.duties:
             credit_list = duty.compute_credits(self)
             if credit_list:
@@ -266,8 +289,13 @@ class Creditator(object):
                 line._credits['pending_rest'] += duty._credits['pending_rest']
                 line._credits['xturn'] += duty._credits['xturn']
                 line._credits['sunday'] += duty._credits['sunday']
+                consecutive_days.calculate(duty)
 
-        # 3 Assign the needed template to print credits
+        # 3 How many 7day do we have?
+        days7 = consecutive_days.dates
+        line._credits['7day'] += len(days7)
+
+        # 4 Assign the needed template to print credits
         line._credits['header'] = line_credits_header
         line._credits['template'] = line_credits_template
 
