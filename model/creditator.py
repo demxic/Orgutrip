@@ -5,7 +5,6 @@ Created on 23/06/2016
 """
 from datetime import timedelta
 
-import numpy as np
 from model.timeClasses import Duration
 
 # TODO : Move all this constants into a configuration file, associated to method set_rules
@@ -77,14 +76,14 @@ def get_rules_for(position, group):
 class ConsecutiveDays(object):
     """Keeps track of how many consecutive days have been worked"""
 
-    def __init__(self, starting_date, frequency):
+    def __init__(self, frequency):
         self.frequency = frequency
-        self.last_counted_date = starting_date
+        self.last_counted_date = None
         self.count = 0
         self.dates = []
 
     def calculate(self, duty):
-        if duty.report.date() != self.last_counted_date + timedelta(days=1):
+        if self.last_counted_date != duty.report.date() + timedelta(days=-1):
             self.count = 0
         for date in duty.get_elapsed_dates():
             self.count += 1
@@ -273,7 +272,7 @@ class Creditator(object):
 
         # 2 Add all credits to find totals
         line_credits_list = []
-        consecutive_days = ConsecutiveDays(line.duties[0].report.date(), 7)
+        consecutive_days = ConsecutiveDays(7)
         for duty in line.duties:
             credit_list = duty.compute_credits(self)
             if credit_list:

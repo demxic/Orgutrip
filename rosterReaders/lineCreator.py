@@ -48,7 +48,7 @@ class Liner(object):
                     trip.append(duty_day)
                     self.line.duties[-1] = trip
 
-            elif rosterDay.name in ['VA', 'X', 'XX', 'TO']:
+            elif rosterDay.name in ['VA', 'X', 'XX', 'TO', 'PC']:
                 marker = self.from_marker(rosterDay)
                 self.line.append(marker)
             elif rosterDay.name == 'RZ':

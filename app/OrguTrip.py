@@ -9,13 +9,13 @@ from model.elements import DateTracker
 from model.payment import compensation_dict, PayCheck
 from model.scheduleClasses import Itinerary, Trip, DutyDay, GroundDuty
 from rosterReaders.lineCreator import Liner
-from rosterReaders.txtroster import RosterReader
+from rosterReaders.rosterTemplates import TxtRosterReader, PdfRosterReader
 
-rolFile = "C:\\Users\\Xico\\Google Drive\\Sobrecargo\\roles\\Rol-2017-07-P.txt"
-summaryFile = "C:\\Users\\Xico\\Google Drive\\Sobrecargo\\Resumen de horas\\2017\\Rol-2017-07-R.txt"
+# rolFile = "C:\\Users\\Xico\\Google Drive\\Sobrecargo\\roles\\Rol-2017-08-P.txt"
+# summaryFile = "C:\\Users\\Xico\\Google Drive\\Sobrecargo\\Resumen de horas\\2017\\Rol-2017-08-R.txt"
 
-# rolFile = "C:\\Users\\Xico\\Google Drive\\Sobrecargo\\roles\\201707.txt"
-# summaryFile = "C:\\Users\\Xico\\Google Drive\\Sobrecargo\\Resumen de horas\\2017\\res201707.txt"
+rolFile = "C:\\Users\\Xico\\Google Drive\\Sobrecargo\\roles\\201711.pdf"
+summaryFile = "C:\\Users\\Xico\\Google Drive\\Sobrecargo\\Resumen de horas\\2017\\res201709.txt"
 
 
 class Menu:
@@ -64,23 +64,25 @@ class Menu:
     def read_printed_line(self):
         """Let's read the roaster from a given .txt file"""
         print("read_printed_line")
-        with open(rolFile) as fp:
-            rr = RosterReader(fp)
-        crew_member = CrewMember(**rr.crew_stats)
+        roster_reader = PdfRosterReader(rolFile)
+        roster_reader.read_file()
+        roster_reader.build()
+        print("crew_stats ", roster_reader.crew_stats)
+        crew_member = CrewMember(**roster_reader.crew_stats)
         print("crew_member : ", crew_member)
-        print("Carry in within month? ", rr.carry_in)
-        print("Roster timeZone ", rr.timeZone)
-        print("Roster year and month ", rr.year, rr.month)
-        dt = DateTracker(rr.year, rr.month, rr.carry_in)
+        print("Carry in within month? ", roster_reader.carry_in)
+        print("Roster timeZone ", roster_reader.timeZone)
+        print("Roster year and month ", roster_reader.year, roster_reader.month)
+        dt = DateTracker(roster_reader.year, roster_reader.month, roster_reader.carry_in)
         print("Date Tracker: ", dt)
         print()
         # print("Printing txtroster line by line")
         # print(40*"*")
-        # for row in rr.roster_days:
+        # for row in roster_reader.roster_days:
         #     print(row)
         # print(40 * "*")
         print("\nCreating a Liner . . . ")
-        liner = Liner(dt, rr.roster_days, 'scheduled')
+        liner = Liner(dt, roster_reader.roster_days, 'scheduled')
         liner.build_line()
         self.line = liner.line
         self.line.crewMember = crew_member
@@ -96,6 +98,7 @@ class Menu:
             print(row)
         print(self.line._credits['template'].format(**self.line._credits))
         mmmm = cr.month_credits(self.line._credits)
+        print(mmmm.keys())
         print("""
                         t_ext_vuelo:    {xblock:2}
                         t_ext_servicio: {xduty:2}
@@ -104,7 +107,7 @@ class Menu:
                         séptimo día     {day7: >5}
                         prima dominical {sunday: >5}
                         """.format(**mmmm))
-        compensations = compensation_dict(925.96*30)
+        compensations = compensation_dict(691.02*30)
         paycheck = PayCheck(compensations)
         paycheck.calculate(mmmm)
         print(paycheck)
@@ -139,17 +142,17 @@ class Menu:
     def read_flights_summary(self):
         """Let's read month's flights summary from a given .txt file"""
         with open(summaryFile) as fp:
-            rr = RosterReader(fp)
-        print("crew_stats : ", rr.crew_stats)
-        print("Carry in within month? ", rr.carry_in)
-        print("Roster timeZone ", rr.timeZone)
-        print("Roster year and month ", rr.year, rr.month)
+            roster_reader = RosterReader(fp)
+        print("crew_stats : ", roster_reader.crew_stats)
+        print("Caroster_readery in within month? ", roster_reader.caroster_readery_in)
+        print("Roster timeZone ", roster_reader.timeZone)
+        print("Roster year and month ", roster_reader.year, roster_reader.month)
 
-        dt = DateTracker(rr.year, rr.month, rr.carry_in)
+        dt = DateTracker(roster_reader.year, roster_reader.month, roster_reader.caroster_readery_in)
         print("\ndatetracker for ", dt)
 
         print("\nCreating a Liner")
-        liner = Liner(dt, rr.roster_days, 'actual_itinerary')
+        liner = Liner(dt, roster_reader.roster_days, 'actual_itinerary')
         liner.build_line()
         self.line = liner.line
 
